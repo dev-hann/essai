@@ -256,25 +256,27 @@ bible/ 폴더 구조:
 
 ### 프레임워크 (essai 자체)
 
+코어 로직과 UI를 완전히 분리. 코어는 순수 Python, UI는 얇은 래퍼.
+
 ```
 essai/
-├── README.md
-├── LICENSE
 ├── pyproject.toml
 ├── essai/
-│   ├── __init__.py
-│   ├── cli.py                 # CLI 진입점 (typer)
-│   ├── config.py              # 설정 관리 (essai.json)
-│   ├── bible.py               # Bible 파싱/관리
-│   ├── bible_agent.py         # 대화형 Bible 생성 AI 에이전트
-│   ├── writer.py              # 챕터 생성
-│   ├── memory.py              # 맥락/요약 관리
-│   ├── editor.py              # 챕터 수정/재생성
-│   ├── reviewer.py            # 품질 검토 (선택적, 기본 OFF)
-│   └── llm/
-│       ├── __init__.py
-│       ├── provider.py        # OpenAI 호환 API 클라이언트
-│       └── prompts.py         # 프롬프트 빌더 + craft rules
+│   ├── core/                  # 코어 로직 (UI 의존성 제로)
+│   │   ├── __init__.py
+│   │   ├── config.py          # 설정 관리
+│   │   ├── bible.py           # Bible 파싱/관리
+│   │   ├── writer.py          # 챕터 생성
+│   │   ├── memory.py          # 맥락/요약 관리
+│   │   ├── editor.py          # 챕터 수정/재생성
+│   │   ├── reviewer.py        # 품질 검토 (선택적)
+│   │   └── llm/
+│   │       ├── __init__.py
+│   │       ├── provider.py    # OpenAI 호환 API 클라이언트
+│   │       └── prompts.py     # 프롬프트 빌더 + craft rules
+│   ├── cli.py                 # CLI 래퍼 (Typer)
+│   ├── tui/                   # TUI 래퍼 (Textual, Phase 5)
+│   └── web/                   # Web 래퍼 (FastAPI, Phase 5)
 ├── templates/                  # Bible 템플릿 (대화 가이드라인 포함)
 │   ├── romance.md
 │   ├── fantasy.md
@@ -282,6 +284,59 @@ essai/
 │   ├── scifi.md
 │   └── blank.md
 └── tests/
+```
+
+### 멀티 인터페이스 아키텍처
+
+```
+                    사용자
+                      │
+          ┌───────────┼───────────┐
+          │           │           │
+       CLI           TUI         Web
+     (Typer)     (Textual)    (FastAPI)
+          │           │           │
+          └─────┬─────┴─────┬─────┘
+                │           │
+          ┌─────▼───────────▼─────┐
+          │    essai-core (순수 Python)
+          │                       │
+          │  Bible · Writer · Memory
+          │  Editor · Reviewer    │
+          │  Config · LLM Provider│
+          └───────────────────────┘
+```
+
+세 가지 UI가 코어의 같은 함수를 호출. UI에 로직 중복 없음.
+
+### 의존성 분리 (optional-dependencies)
+
+```toml
+[project]
+dependencies = [
+    "httpx",       # API 호출 (코어)
+    "pydantic",    # 데이터 검증 (코어)
+    "pyyaml",      # YAML 파싱 (코어)
+]
+
+[project.optional-dependencies]
+cli = ["typer", "rich"]
+tui = ["textual"]
+web = ["fastapi", "uvicorn"]
+dev = ["pytest", "pytest-asyncio", "ruff"]
+```
+
+```bash
+pip install essai              # 코어만
+pip install essai[cli]         # 코어 + CLI
+pip install essai[tui]         # 코어 + TUI
+pip install essai[web]         # 코어 + Web
+pip install essai[cli,tui,web] # 전부
+```
+
+코어만 설치하면 다른 Python 스크립트에서 import 가능:
+```python
+from essai.core import Writer, Bible, ProjectConfig
 ```
 
 ### 사용자 프로젝트 (작가의 소설)
