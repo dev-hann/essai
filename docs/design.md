@@ -30,11 +30,13 @@ AI는 bible을 읽고 그 안에서만 글을 쓴다. bible에 없는 설정은 
 
 ```
 bible.md 구조:
-- 캐릭터 (이름, 나이, 성격, 말투, 관계)
-- 세계관 (배경, 장소, 시간)
+- 캐릭터 (이름, 나이, 성격, 말투, 배경)
+- 인물 관계
 - 감정 곡선 (단계별 감정 변화)
 - 챕터 계획 (각 화의 핵심 장면과 목표)
-- 금지 사항 ("이 설정은 추가하지 마", "이 톤은 유지해")
+- 필체/문체 (구어체, 문장 길이, 시점 등)
+- 톤/분위기 (잔잔하게, 유머러스하게 등)
+- 금지 사항 ("이 설정 추가하지 마", "이 톤은 유지해")
 ```
 
 ### Chapter (챕터)
@@ -437,7 +439,95 @@ reasoning 모델(GLM-5.x, o1)과 비-reasoning 모델(GLM-5.1, GPT-4o) 모두 �
 
 ---
 
-## 8. 기술 스택
+## 8. Craft Rules (작법 규칙)
+
+Writer가 챕터를 생성할 때 system prompt에 포함되는 글쓰기 규칙.
+언어 독립적 — 모든 규칙은 영어로 작성, 출력 언어는 config.language에서 주입.
+
+### 공통 규칙 (모든 장르, 모든 언어)
+
+```
+## Craft Rules
+
+- Show, don't tell: behavior, evidence, concrete detail, and staging —
+  never label emotions directly.
+- Simile restraint: at most one simile/metaphor per scene. Prefer precise
+  verbs and concrete actions over figures of speech.
+- Anti-AI wording: avoid "delve", "tapestry", "testament", "intricate",
+  "pivotal". Do not use "It wasn't X; it was Y" as a crutch.
+- No padding: every scene must advance conflict, causality, emotion,
+  evidence, pressure, payoff, or a relationship.
+- Climax is a scene, not a recap: key beats must play out on the page
+  (action, dialogue, senses). Never compress into one line.
+- Payoffs need setup: every reversal, reconciliation, or reveal must ride
+  a chain of evidence established in earlier chapters.
+- Side characters need motives: even minor characters act from interest,
+  misjudgment, or fear — never plot devices.
+- Mobile-first pacing: short paragraphs, dense information, no decorative
+  filler.
+- Bible compliance: only use settings, characters, and plot points defined
+  in the Bible. Do not invent new characters, settings, or backstory.
+```
+
+### 언어 지시문 (실행 시점 조합)
+
+craft rules 다음에 언어 지시문이 자동으로 붙음:
+
+```
+Write all prose, dialogue, and narration in {config.language}.
+Internal monologue must also be in {config.language}.
+```
+
+### 사용자 커스텀 규칙
+
+bible.md에서 세 가지 섹션이 craft rules에 추가로 주입됨:
+
+**필체/문체** (문장 스타일)
+```
+bible.md:
+  ## 필체/문체
+  - 구어체, ㅋㅋ 살리기
+  - 짧은 문장 위주
+  - 1인칭 남성 화자
+
+→ 프롬프트 주입:
+  ## Writing Style
+  - 구어체, ㅋㅋ 살리기
+  - 짧은 문장 위주
+  - 1인칭 남성 화자
+```
+
+**톤/분위기** (이야기의 느낌)
+```
+bible.md:
+  ## 톤/분위기
+  - 잔잔하고 애틋하게
+  - 유머는 자연스럽게
+
+→ 프롬프트 주입:
+  ## Tone & Mood
+  - 잔잔하고 애틋하게
+  - 유머는 자연스럽게
+```
+
+**금지 사항** (내용 제한)
+```
+bible.md:
+  ## 금지 사항
+  - bible에 없는 설정 추가 금지
+  - 과도한 멜로드라마 금지
+
+→ 프롬프트 주입:
+  ## Constraints
+  - bible에 없는 설정 추가 금지
+  - 과도한 멜로드라마 금지
+```
+
+규칙 우선순위: 공통 규칙 < 사용자 커스텀 (bible.md). 충돌 시 bible.md가 이김.
+
+---
+
+## 9. 기술 스택
 
 | 영역 | 선택 | 이유 |
 |------|------|------|
@@ -452,7 +542,7 @@ reasoning 모델(GLM-5.x, o1)과 비-reasoning 모델(GLM-5.1, GPT-4o) 모두 �
 
 ---
 
-## 9. 개발 로드맵
+## 10. 개발 로드맵
 
 ### Phase 1: MVP (핵심 — 글을 쓸 수 있는 상태)
 - [ ] config: 프로젝트 설정 로드/저장
