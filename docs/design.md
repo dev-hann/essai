@@ -395,11 +395,29 @@ essai export <n> [--format md|txt]   특정 화만 내보내기
 
 ## 7. 설계 원칙
 
-### 7-1. 파일이 곧 데이터
+### 7-1. 언어 독립성 (가장 중요)
+
+코드에 어떤 언어도 하드코딩하지 않는다. 프롬프트에서만 처리한다.
+
+```
+essai.json:
+  "language": "ko"     →  프롬프트: "Write all prose in Korean."
+  "language": "en"     →  프롬프트: "Write all prose in English."
+  "language": "zh"     →  프롬프트: "Write all prose in Chinese."
+  "language": "ja"     →  프롬프트: "Write all prose in Japanese."
+```
+
+- 언어 목록을 코드에 정의하지 않음. config.language는 그냥 문자열.
+- craft rules, system prompt, bible agent 대화 — 전부 config.language 값을 프롬프트에 주입만 함.
+- "ko", "en", "zh" 분기(if/elif)가 코드 어디에도 없어야 함.
+- 새 언어 추가 = 코드 변경 없이 config 하나만 바꾸면 끝.
+- CLI 출력(진행 메시지, 에러 등)은 영어로 고정. 본문 언어와 무관.
+
+### 7-2. 파일이 곧 데이터
 데이터베이스 없음. 전부 Markdown과 JSON. git으로 버전 관리 가능.
 작가가 파일을 직접 열어보고 수정할 수 있음.
 
-### 7-2. 점진적 적용
+### 7-3. 점진적 적용
 ```
 Level 0: Bible만 쓴다 → 직접 글을 쓴다 (AI 안 씀)
 Level 1: Bible + Writer → 챕터를 AI가 쓴다
@@ -408,18 +426,14 @@ Level 3: Bible + Writer + Memory + Reviewer → 품질 검토까지
 ```
 모든 단계가 선택적이다.
 
-### 7-3. 프롬프트 분리
+### 7-4. 프롬프트 분리
 프롬프트는 llm/prompts.py에서 관리. 사용자가 수정 가능.
 craft rules (Show don't tell, AI 흔적 제거 등)도 파일로 분리.
+언어 지시문도 별도 함수에서 조합 (하드코딩 아님).
 
-### 7-4. 모델 독립
+### 7-5. 모델 독립
 OpenAI 호환 API면 모든 모델이 동일하게 작동.
 reasoning 모델(GLM-5.x, o1)과 비-reasoning 모델(GLM-5.1, GPT-4o) 모두 지원.
-
-### 7-5. 언어/장르 자유
-코드에 언어나 장르를 하드코딩하지 않음.
-언어는 config의 language 필드 → 프롬프트에 주입.
-장르는 bible.md의 작성 내용 → 프롬프트에 주입.
 
 ---
 
