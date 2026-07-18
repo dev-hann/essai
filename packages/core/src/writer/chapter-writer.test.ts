@@ -262,4 +262,85 @@ describe("ChapterWriter", () => {
 			process.chdir(cwd);
 		}
 	});
+
+	it("throws when llm.baseUrl is not configured", async () => {
+		mockStreamResult(["text"]);
+
+		const writer = new ChapterWriter(
+			newConfig(
+				sampleConfigData({
+					llm: {
+						baseUrl: "",
+						apiKey: "x",
+						model: "glm-5.1",
+						temperature: 0.7,
+						maxTokens: 8000,
+						thinkingEnabled: false,
+					},
+				}),
+			),
+			sampleBible(),
+			tmpDir,
+		);
+
+		await expect(writer.writeChapter(1)).rejects.toThrow(/baseUrl/);
+		expect(mocks.streamText).not.toHaveBeenCalled();
+	});
+
+	it("throws when llm.model is not configured", async () => {
+		mockStreamResult(["text"]);
+
+		const writer = new ChapterWriter(
+			newConfig(
+				sampleConfigData({
+					llm: {
+						baseUrl: "https://api.example.com/v4",
+						apiKey: "x",
+						model: "",
+						temperature: 0.7,
+						maxTokens: 8000,
+						thinkingEnabled: false,
+					},
+				}),
+			),
+			sampleBible(),
+			tmpDir,
+		);
+
+		await expect(writer.writeChapter(1)).rejects.toThrow(/model/);
+		expect(mocks.streamText).not.toHaveBeenCalled();
+	});
+
+	it("does not write a chapter file when the stream errors", async () => {
+		const error = new Error("upstream failed");
+		const rejectedText = Promise.reject(error);
+		// Attach a handler so Node doesn't report an unhandled rejection
+		// before the writer gets a chance to await it.
+		rejectedText.catch(() => {});
+
+		const failingStream: AsyncIterable<string> = {
+			[Symbol.asyncIterator]() {
+				return {
+					next: () => rejectedText as Promise<IteratorResult<string>>,
+				};
+			},
+		};
+
+		mocks.streamText.mockResolvedValue({
+			textStream: failingStream,
+			text: rejectedText,
+		});
+
+		const writer = new ChapterWriter(
+			newConfig(sampleConfigData()),
+			sampleBible(),
+			tmpDir,
+		);
+
+		await expect(writer.writeChapter(1)).rejects.toThrow(/upstream failed/);
+
+		await expect(
+			fs.readFile(path.join(tmpDir, "chapters", "001.md"), "utf-8"),
+		).rejects.toThrow();
+	});
 });

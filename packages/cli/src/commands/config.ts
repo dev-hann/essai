@@ -12,6 +12,20 @@ export interface ShowConfigOpts extends ConfigOpts {
 
 const CONFIG_FILE = "essai.json";
 const NUMERIC_KEYS = new Set(["chapterWords", "temperature", "maxTokens"]);
+const LLM_KEYS = new Set([
+	"baseUrl",
+	"apiKey",
+	"model",
+	"temperature",
+	"maxTokens",
+	"thinkingEnabled",
+]);
+
+function normalizeKey(key: string): string {
+	if (key.includes(".")) return key;
+	if (LLM_KEYS.has(key)) return `llm.${key}`;
+	return key;
+}
 
 type AnyJson =
 	| string
@@ -72,7 +86,7 @@ export async function getConfigValue(
 	opts: ConfigOpts = {},
 ): Promise<unknown> {
 	const data = await readRaw(opts.cwd ?? process.cwd());
-	return getByPath(data, key);
+	return getByPath(data, normalizeKey(key));
 }
 
 export async function setConfigValue(
@@ -83,7 +97,8 @@ export async function setConfigValue(
 	const cwd = opts.cwd ?? process.cwd();
 	const data = await readRaw(cwd);
 
-	const parts = key.split(".");
+	const normalized = normalizeKey(key);
+	const parts = normalized.split(".");
 	const lastPart = parts[parts.length - 1];
 	if (!lastPart) throw new Error(`Invalid key: ${key}`);
 

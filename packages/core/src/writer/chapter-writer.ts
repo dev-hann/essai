@@ -41,6 +41,12 @@ export class ChapterWriter {
 	): Promise<WriteChapterResult> {
 		const { instruction, memorySummaries, onToken } = options;
 
+		if (!this.config.llm.baseUrl || !this.config.llm.model) {
+			throw new Error(
+				"LLM is not configured. Set llm.baseUrl and llm.model in essai.json before writing.",
+			);
+		}
+
 		const { system, user } = buildWriterPrompt({
 			bible: this.bible,
 			chapterNumber,
@@ -59,10 +65,15 @@ export class ChapterWriter {
 		});
 
 		let content = "";
-		for await (const delta of (await result).textStream) {
+		const resolved = await result;
+		for await (const delta of resolved.textStream) {
 			content += delta;
 			onToken?.(delta);
 		}
+
+		// Awaiting the final text surfaces any error that the stream swallowed
+		// (e.g. invalid URL, auth failure) so we never persist an empty chapter.
+		await resolved.text;
 
 		const chaptersDir = path.join(this.projectDir, "chapters");
 		await fs.mkdir(chaptersDir, { recursive: true });
