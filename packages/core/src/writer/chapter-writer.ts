@@ -1,0 +1,74 @@
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import { streamText } from "ai";
+import type { BibleData } from "../bible/types.js";
+import type { ProjectConfig } from "../config/project-config.js";
+import { buildWriterPrompt } from "../llm/prompts.js";
+import { createModel } from "../llm/provider.js";
+import type { ChapterMemory } from "../memory/types.js";
+
+export interface WriteChapterOptions {
+	instruction?: string;
+	memorySummaries?: ChapterMemory[];
+	onToken?: (delta: string) => void;
+}
+
+export interface WriteChapterResult {
+	content: string;
+	wordCount: number;
+}
+
+const PAD_WIDTH = 3;
+
+function padChapter(n: number): string {
+	return n.toString().padStart(PAD_WIDTH, "0");
+}
+
+export class ChapterWriter {
+	private readonly projectDir: string;
+
+	constructor(
+		private readonly config: ProjectConfig,
+		private readonly bible: BibleData,
+		projectDir: string = ".",
+	) {
+		this.projectDir = projectDir;
+	}
+
+	async writeChapter(
+		chapterNumber: number,
+		options: WriteChapterOptions = {},
+	): Promise<WriteChapterResult> {
+		const { instruction, memorySummaries, onToken } = options;
+
+		const { system, user } = buildWriterPrompt({
+			bible: this.bible,
+			chapterNumber,
+			language: this.config.language,
+			chapterWords: this.config.chapterWords,
+			...(instruction !== undefined ? { instruction } : {}),
+			...(memorySummaries !== undefined ? { memory: memorySummaries } : {}),
+		});
+
+		const result = streamText({
+			model: createModel(this.config.llm),
+			system,
+			prompt: user,
+			temperature: this.config.llm.temperature,
+			maxOutputTokens: this.config.llm.maxTokens,
+		});
+
+		let content = "";
+		for await (const delta of (await result).textStream) {
+			content += delta;
+			onToken?.(delta);
+		}
+
+		const chaptersDir = path.join(this.projectDir, "chapters");
+		await fs.mkdir(chaptersDir, { recursive: true });
+		const file = path.join(chaptersDir, `${padChapter(chapterNumber)}.md`);
+		await fs.writeFile(file, content, "utf-8");
+
+		return { content, wordCount: content.length };
+	}
+}

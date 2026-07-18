@@ -31,6 +31,8 @@ export type { WriterPrompt, WriterPromptOptions } from "./llm/prompts.js";
 export { buildWriterPrompt } from "./llm/prompts.js";
 // LLM provider
 export { createModel } from "./llm/provider.js";
+export { MemoryStore } from "./memory/memory-store.js";
+export { Summarizer } from "./memory/summarizer.js";
 export type {
 	ChapterMemory,
 	CharacterState,
@@ -49,5 +51,11 @@ export {
 	memoryEmotionSchema,
 	memoryForeshadowingSchema,
 } from "./memory/types.js";
+export type {
+	WriteChapterOptions,
+	WriteChapterResult,
+} from "./writer/chapter-writer.js";
+// Writer
+export { ChapterWriter } from "./writer/chapter-writer.js";
 
 export const CORE_VERSION = "0.0.0";
