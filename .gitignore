@@ -1,13 +1,11 @@
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
+# Dependencies
+node_modules/
+
+# Build outputs
 dist/
 build/
-.eggs/
-*.egg
-.venv/
-venv/
+.next/
+.turbo/
 
 # IDE
 .vscode/
@@ -19,10 +17,14 @@ venv/
 .DS_Store
 Thumbs.db
 
-# Project data (사용자 프로젝트 파일은 커밋하지 않음)
+# Environment
+.env
+.env.local
 *.env
+
+# Project data (사용자 프로젝트 파일은 커밋하지 않음)
 essai.json
-bible.md
+bible/
 chapters/
 memory/
-reviews/
+exports/
