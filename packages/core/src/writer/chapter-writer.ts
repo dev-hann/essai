@@ -4,7 +4,7 @@ import { streamText } from "ai";
 import type { BibleData } from "../bible/types.js";
 import type { ProjectConfig } from "../config/project-config.js";
 import { buildWriterPrompt } from "../llm/prompts.js";
-import { createModel } from "../llm/provider.js";
+import { createModel, thinkingProviderOptions } from "../llm/provider.js";
 import type { ChapterMemory } from "../memory/types.js";
 
 export interface WriteChapterOptions {
@@ -56,13 +56,19 @@ export class ChapterWriter {
 			...(memorySummaries !== undefined ? { memory: memorySummaries } : {}),
 		});
 
-		const result = streamText({
+		const opts: Record<string, unknown> = {
 			model: createModel(this.config.llm),
 			system,
 			prompt: user,
 			temperature: this.config.llm.temperature,
 			maxOutputTokens: this.config.llm.maxTokens,
-		});
+		};
+		const thinkingOpts = thinkingProviderOptions(this.config.llm);
+		if (thinkingOpts) {
+			opts.providerOptions = thinkingOpts;
+		}
+
+		const result = streamText(opts as Parameters<typeof streamText>[0]);
 
 		let content = "";
 		const resolved = await result;
