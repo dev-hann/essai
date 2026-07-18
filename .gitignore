@@ -6,6 +6,7 @@ dist/
 build/
 .next/
 .turbo/
+.worktrees/
 
 # IDE
 .vscode/
