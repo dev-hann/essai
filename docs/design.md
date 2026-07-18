@@ -64,11 +64,32 @@ bible.md 구조:
    $ essai config set language ko
    → essai.json에 저장
 
-3. Bible 작성
-   $ essai bible edit
-   → 에디터가 열리고, 작가가 직접 설정을 작성
-   → 또는 기존 설정(bible.md)을 복사해 넣음
-   → 템플릿 제공: $ essai bible init --template romance
+3. Bible 작성 (AI 에이전트 대화형)
+   $ essai bible init
+   → 템플릿 선택: romance / fantasy / mystery / scifi / blank
+   → AI 에이전트가 작가와 대화하면서 bible.md를 완성
+
+   대화 예시:
+   AI: "이야기의 중심이 되는 캐릭터는 누구인가요?"
+   작가: "한국 대학생 남자랑 대만 여자 워홀러"
+   AI: "좋아요. 남자 캐릭터의 이름과 나이, 직업을 정해볼까요?"
+   작가: "도윤, 25세, 전기공학 4학년"
+   AI: "도윤의 성격은 어떤 편인가요? 예를 들어 과묵한지, 말이 많은지,"
+        "감정을 직접 표현하는지 숨는지..."
+   작가: "과묵한데 은근히 챙기는 타입"
+   AI: "그러면 여주도 정해볼까요? 이름과 배경을 알려주세요"
+   작가: "위팅, 23세, 대만에서 워홀로 한국 옴"
+   AI: "도윤과 위팅이 처음 만나는 상황은 어떤가요? 작가님이 원하시는"
+        "첫 만남 시나리오가 있나요?"
+   ...
+
+   → AI가 맥락을 이해하고 다음 질문을 결정
+   → 사용자가 "이 정도면 됐어" 하면 대화 종료
+   → 답변이 bible.md에 자동 구조화하여 저장
+
+   이후 추가/수정:
+   → $ essai bible add → "추가하고 싶은 게 뭐예요?" 대화 시작
+   → $ essai bible edit → 에디터에서 직접 수정
 
 4. 1화 작성
    $ essai write 1
@@ -127,23 +148,47 @@ bible.md 구조:
 
 ### 모듈별 책임
 
-**Bible**
-- bible.md를 읽고 파싱
+**Bible** (설정 관리)
+- bible.md를 읽고 파싱 (Markdown 섹션 → 구조화된 데이터)
 - 캐릭터, 감정 곡선, 챕터 계획을 구조화된 데이터로 제공
 - 작성 중인 챕터에 해당하는 챕터 계획만 추출
-- 템플릿 제공 (로맨스, SF, 미스터리 등 — 단, 템플릿일 뿐 강제 아님)
+- 템플릿 제공 (romance, SF, 미스터리 등 — 단, 템플릿일 뿐 강제 아님)
+- AI 에이전트 대화형 인터페이스: 작가와 대화하면서 설정을 추출
+  - AI가 답변을 분석해 다음 질문을 동적으로 생성
+  - 템플릿별 대화 가이드라인(어떤 순서로 뭘 물어볼지)은 가지되, 고정 순차가 아님
+  - 사용자가 "이 정도면 됐어" 하면 대화 종료
+- 추출된 정보를 bible.md에 구조화하여 자동 저장
+- 점진적 작성: add 명령으로 언제든 대화 재개
+  - add character, add chapter, add relationship
 
-**Writer**
-- Bible + Memory를 조합해서 프롬프트 생성
-- LLM Provider에 요청
-- 스트리밍 응답을 chapters/NNN.md에 저장
+**Writer** (챕터 생성)
+- Bible(설정) + Memory(이전 챕터 요약)를 조합해서 프롬프트 생성
+- 챕터 계획에 없는 설정은 추가하지 않도록 강제 ("bible에 없으면 쓰지 마")
+- LLM Provider에 요청, 스트리밍 응답을 화면에 실시간 출력
+- 응답 완료되면 chapters/NNN.md에 저장
 - craft rules (Show don't tell, AI 흔적 제거 등)를 프롬프트에 포함
+- 추가 지시사항 지원: --instruction "톤을 더 가볍게"
+- 언어: config.language를 프롬프트에 주입 (코드에서 언어 결정 안 함)
 
-**Memory**
-- 챕터 작성 완료 후 자동 요약 생성
-- 요약: 핵심 사건, 감정 변화, 새로 등장한 정보, 미회수 복선
+**Memory** (맥락 유지)
+- 챕터 작성 완료 후 자동 요약 생성 (LLM 호출 1회)
+- 요약 내용: 핵심 사건, 감정 변화, 새로 등장한 정보, 미회수 복선
 - 다음 챕터 작성 시 최근 N개 요약 + 현재 감정 단계만 주입
-- 토큰 예산 내에서 맥락 선택
+- 토큰 예산 관리: 전체 챕터 텍스트가 아닌 요약본만 주입해서 토큰 절약
+- $ essai context <n> 으로 "N화 생성 시 어떤 맥락이 들어가는지" 미리보기 가능
+
+**Editor** (수정)
+- 챕터 재생성: 기존 챕터를 버리고 새로 씀 (이전 맥락은 유지)
+- 부분 수정: 특정 문단/장면만 다시 쓰도록 지시 (--section "옥상 씬")
+- 추가 지시: 기존 내용을 유지하면서 방향 수정 (--instruction "대화를 더 늘려")
+- 격리 구조: 한 챕터 수정이 다른 챕터에 자동 영향을 주지 않음
+  단, Memory 요약은 업데이트됨 → 이후 챕터에 반영
+
+**Reviewer** (선택적, 기본 OFF)
+- 작가가 켤 수 있는 품질 피드백 기능
+- 점수가 아닌 피드백 제공 ("5장에서 감정 전환이 급함", "3장 대사가 자연스러움")
+- 검토 기준 커스텀 가능 (--rules ./my-rules.md)
+- 거절하지 않음 — 피드백만 주고, 수정 여부는 작가가 결정
 
 **LLM Provider**
 - OpenAI 호환 API (/v1/chat/completions)
@@ -156,23 +201,16 @@ bible.md 구조:
 ```
 작가: $ essai write 1
 
-1. Bible에서 1화 챕터 계획 추출
-   → "계약 통역 첫 만남, 산링 경계, 세 명 축복..."
-
-2. Memory 확인
-   → 이전 챕터 없음 (1화이므로)
-
-3. 프롬프트 조합:
-   system: craft rules + "bible에 정의된 설정만 따를 것"
-   user:   bible 전체 + 1화 챕터 계획 + "한국어로 작성"
-
-4. LLM Provider → GLM API 스트리밍 호출
-
-5. 응답을 chapters/001.md에 저장
-
-6. Memory: 1화 요약 자동 생성 → memory/001.json에 저장
-
-7. 작가에게 완료 알림
+1. Config 로드 (모델, 언어, 글자수)
+2. Bible에서 1화 챕터 계획 + 캐릭터/설정 추출
+3. Memory 확인 → 이전 챕터 없음 (1화)
+4. 프롬프트 조합:
+   system: "한국어 소설 작가. bible 설정만 따를 것. + craft rules"
+   user:   "## 설정\n{bible 요약}\n## 1화 계획\n{챕터 계획}\n## 지시\n한국어로 약 3000자"
+5. LLM Provider → API 스트리밍 호출 (thinking 비활성화)
+6. 화면에 실시간 출력 + chapters/001.md에 동시 저장
+7. Memory: 1화 요약 자동 생성 → memory/001.json
+8. 완료: "1화 완성 (3,021자)"
 ```
 
 ### 데이터 흐름 (5화 작성 예시)
@@ -180,18 +218,33 @@ bible.md 구조:
 ```
 작가: $ essai write 5
 
-1. Bible에서 5화 챕터 계획 추출
+1. Config 로드
+2. Bible에서 5화 챕터 계획 추출
+3. Memory에서 1~4화 요약 로드
+   → 토큰 예산에 맞게 최근 3개(2~4화) 요약만 선택
+4. 프롬프트 조합:
+   system: "한국어 소설 작가. bible 설정만 따를 것. + craft rules"
+   user:   "## 설정\n{bible 캐릭터/관계 요약}\n## 이전 이야기\n{2~4화 요약}\n## 5화 계획\n{챕터 계획}\n## 지시\n한국어로 약 3000자"
+5. LLM 호출 → chapters/005.md 저장
+6. Memory: 5화 요약 생성
+7. 완료: "5화 완성 (2,876자) — 감정 단계: 의존"
+```
 
-2. Memory에서 1~4화 요약 로드
-   → 토큰 예산에 맞게 최근 3개 요약만 선택
+### 데이터 흐름 (3화 재생성 예시)
 
-3. 프롬프트 조합:
-   system: craft rules
-   user:   bible 캐릭터/설정 요약 + 1~4화 요약 + 5화 계획
+```
+작가: $ essai rewrite 3 --instruction "대화를 더 늘려"
 
-4. LLM 호출 → chapters/005.md 저장
-
-5. Memory: 5화 요약 생성
+1. Config 로드
+2. Bible에서 3화 챕터 계획 추출
+3. Memory에서 1~2화 요약 로드 (3화 이전 맥락)
+4. 기존 3화 내용을 reference로 로드 (있으면)
+5. 프롬프트 조합:
+   system: 동일
+   user:   "## 설정 + ## 이전 이야기 + ## 3화 계획 + ## 기존 초과(있으면) + ## 추가 지시: 대화를 더 늘려"
+6. LLM 호출 → chapters/003.md 덮어쓰기
+7. Memory: 3화 요약 업데이트
+8. 완료: "3화 재생성 완료 (3,412자)"
 ```
 
 ---
@@ -208,8 +261,9 @@ essai/
 ├── essai/
 │   ├── __init__.py
 │   ├── cli.py                 # CLI 진입점 (typer)
-│   ├── config.py              # 설정 관리
+│   ├── config.py              # 설정 관리 (essai.json)
 │   ├── bible.py               # Bible 파싱/관리
+│   ├── bible_agent.py         # 대화형 Bible 생성 AI 에이전트
 │   ├── writer.py              # 챕터 생성
 │   ├── memory.py              # 맥락/요약 관리
 │   ├── editor.py              # 챕터 수정/재생성
@@ -218,10 +272,11 @@ essai/
 │       ├── __init__.py
 │       ├── provider.py        # OpenAI 호환 API 클라이언트
 │       └── prompts.py         # 프롬프트 빌더 + craft rules
-├── templates/                  # Bible 템플릿
+├── templates/                  # Bible 템플릿 (대화 가이드라인 포함)
 │   ├── romance.md
-│   ├── scifi.md
+│   ├── fantasy.md
 │   ├── mystery.md
+│   ├── scifi.md
 │   └── blank.md
 └── tests/
 ```
@@ -230,19 +285,59 @@ essai/
 
 ```
 my-novel/
-├── essai.json                  # 프로젝트 설정
-├── bible.md                    # 설정서 (작가가 직접 작성)
+├── essai.json                  # 프로젝트 설정 (모델, 언어, 글자수)
+├── bible.md                    # 설정서 (AI 에이전트 대화로 생성, 수동 수정 가능)
 ├── chapters/
 │   ├── 001.md                  # 1화
 │   ├── 002.md                  # 2화
 │   └── ...
 ├── memory/                     # 자동 생성 (건드릴 필요 없음)
-│   ├── 001.json                # 1화 요약
+│   ├── 001.json                # 1화 요약 (사건, 감정, 복선)
 │   ├── 002.json                # 2화 요약
-│   └── context.json            # 현재 스토리 상태
+│   └── ...
 └── exports/                    # 내보낸 파일
     └── full.md
 ```
+
+### 템플릿 구조
+
+템플릿은 두 가지 역할을 합니다: bible.md의 빈 양식 + 대화형 에이전트의 가이드라인.
+
+```yaml
+# templates/romance.md
+
+---
+# 대화형 에이전트 가이드라인
+agent:
+  sections:        # 이 순서대로 질문을 시작하되, 사용자 답변에 따라 유연하게
+    - characters   # "중심 캐릭터는?"
+    - relationships # "둘의 관계는?"
+    - conflict      # "핵심 갈등은?"
+    - emotion       # "감정이 어떻게 변하나요?"
+    - chapters      # "각 화에서 일어나는 일은?"
+    - tone          # "분위기나 톤이 있나요?"
+    - rules         # "피하고 싶은 것 있나요?"
+  min_questions: 5  # 최소 5개 섹션은 다룰 것
+---
+
+# Bible
+
+## 캐릭터
+(작가가 대화로 채움)
+
+## 인물 관계
+
+## 감정 곡선
+
+## 챕터 계획
+
+## 톤/분위기
+
+## 금지 사항
+```
+
+에이전트는 이 가이드라인을 읽고, 각 섹션에 대해 자연스러운 대화로 정보를 추출합니다.
+고정된 질문이 아니라, 이전 답변을 반영해서 다음 질문을 동적으로 생성합니다.
 
 ---
 
@@ -258,9 +353,12 @@ essai config show                    전체 설정 출력
 
 ### Bible
 ```
-essai bible init [--template romance]  Bible 템플릿 생성
+essai bible init [--template romance]  대화형으로 Bible 생성
 essai bible show                       현재 설정 출력 (트리 구조)
 essai bible edit                       에디터에서 bible.md 열기
+essai bible add character              대화형으로 캐릭터 추가
+essai bible add chapter <n>            N화 챕터 계획 추가
+essai bible add relationship           인물 관계 추가
 essai bible validate                   설정 누락/충돌 검사
 ```
 
