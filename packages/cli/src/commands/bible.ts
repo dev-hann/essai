@@ -32,6 +32,7 @@ const DEFAULT_EDITOR = "vi";
 
 export interface BibleOpts extends IoOpts {
 	templatesDir?: string;
+	agent?: boolean;
 }
 
 export interface BibleEditOpts extends IoOpts {
@@ -225,6 +226,46 @@ export async function bibleInit(
 	for (const file of written.sort()) {
 		stdout.write(`  - ${file}\n`);
 	}
+
+	if (opts.agent) {
+		await runBibleAgent(cwd, stdout);
+	}
+}
+
+async function runBibleAgent(
+	cwd: string,
+	stdout: { write(chunk: string): void },
+): Promise<void> {
+	const { ProjectConfig, BibleAgent, createModel } = await import(
+		"@essai/core"
+	);
+	const readline = await import("node:readline/promises");
+
+	const config = await ProjectConfig.load(cwd);
+	if (!config.llm.baseUrl || !config.llm.apiKey || !config.llm.model) {
+		stdout.write("\nLLM not configured. Run `essai config set` first.\n");
+		return;
+	}
+
+	const model = createModel(config.llm);
+	const agent = new BibleAgent(config, model, cwd);
+
+	const rl = readline.createInterface({
+		input: process.stdin,
+		output: process.stdout,
+	});
+
+	stdout.write("\nStarting AI-guided Bible creation...\n\n");
+
+	await agent.run({
+		onMessage: (msg) => stdout.write(`\n🤖 ${msg}\n\n`),
+		onInput: () => rl.question("✍️  "),
+		onSaved: (file, summary) =>
+			stdout.write(`  ✓ ${summary} → bible/${file}\n`),
+	});
+
+	rl.close();
+	stdout.write("\nBible creation complete!\n");
 }
 
 export async function bibleShow(opts: IoOpts = {}): Promise<void> {
