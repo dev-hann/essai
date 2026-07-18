@@ -17,7 +17,13 @@
 		"test": "vitest run --passWithNoTests"
 	},
 	"devDependencies": {
+		"@types/node": "^26.1.1",
 		"typescript": "^7.0.2",
 		"vitest": "^4.1.10"
+	},
+	"dependencies": {
+		"@ai-sdk/openai-compatible": "^3.0.12",
+		"ai": "^7.0.31",
+		"zod": "^4.4.3"
 	}
 }
