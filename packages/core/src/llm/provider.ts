@@ -9,6 +9,8 @@ export function createModel(config: LlmConfigData): LanguageModel {
 		name: PROVIDER_NAME,
 		baseURL: config.baseUrl,
 		apiKey: config.apiKey,
+		// @ts-expect-error — AI SDK doesn't formally type providerOptions here
+		options: config.thinkingEnabled ? {} : { thinking: { type: "disabled" } },
 	});
 	return provider.languageModel(config.model);
 }
