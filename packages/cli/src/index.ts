@@ -2,13 +2,24 @@
 import { CORE_VERSION } from "@essai/core";
 import { Command } from "commander";
 import {
+	bibleAdd,
+	bibleEdit,
+	bibleInit,
+	bibleShow,
+	bibleValidate,
+} from "./commands/bible.js";
+import {
 	getConfigValue,
 	setConfigValue,
 	showConfig,
 } from "./commands/config.js";
+import { contextCommand } from "./commands/context.js";
+import { exportCommand } from "./commands/export.js";
 import { createProject } from "./commands/init.js";
 import { listChapters } from "./commands/list.js";
 import { readChapter } from "./commands/read.js";
+import { reviewChapterCommand } from "./commands/review.js";
+import { rewriteChapterCommand } from "./commands/rewrite.js";
 import { showStatus } from "./commands/status.js";
 import { writeChapterCommand } from "./commands/write.js";
 
@@ -154,6 +165,161 @@ export function buildProgram(): Command {
 		.action(async () => {
 			try {
 				await showStatus();
+			} catch (err) {
+				reportError(err);
+				process.exit(1);
+			}
+		});
+
+	program
+		.command("context <chapter>")
+		.description(
+			"Preview the context that would be injected when writing chapter N",
+		)
+		.action(async (chapter: string) => {
+			try {
+				const n = parseChapterArg(chapter);
+				if (n === "next") {
+					throw new Error(
+						'"context next" is not supported. Use a chapter number.',
+					);
+				}
+				await contextCommand(n);
+			} catch (err) {
+				reportError(err);
+				process.exit(1);
+			}
+		});
+
+	program
+		.command("rewrite <chapter>")
+		.description("Regenerate chapter N from scratch (overwrites)")
+		.option(
+			"-i, --instruction <text>",
+			"additional instruction for the rewrite",
+		)
+		.action(async (chapter: string, opts: { instruction?: string }) => {
+			try {
+				const n = parseChapterArg(chapter);
+				if (n === "next") {
+					throw new Error(
+						'"rewrite next" is not supported. Use a chapter number.',
+					);
+				}
+				await rewriteChapterCommand(n, {
+					...(opts.instruction !== undefined
+						? { instruction: opts.instruction }
+						: {}),
+				});
+			} catch (err) {
+				reportError(err);
+				process.exit(1);
+			}
+		});
+
+	program
+		.command("export")
+		.description("Concatenate every chapter into a single file")
+		.option(
+			"-f, --format <format>",
+			"output format: md (with chapter headers) or txt (plain)",
+			"md",
+		)
+		.action(async (opts: { format: string }) => {
+			try {
+				const format = opts.format === "txt" ? "txt" : "md";
+				await exportCommand({ format });
+			} catch (err) {
+				reportError(err);
+				process.exit(1);
+			}
+		});
+
+	program
+		.command("review <chapter>")
+		.description("Generate quality feedback for chapter N")
+		.option("-r, --rules <file>", "custom review rules from a markdown file")
+		.action(async (chapter: string, opts: { rules?: string }) => {
+			try {
+				const n = parseChapterArg(chapter);
+				if (n === "next") {
+					throw new Error(
+						'"review next" is not supported. Use a chapter number.',
+					);
+				}
+				await reviewChapterCommand(n, {
+					...(opts.rules !== undefined ? { rules: opts.rules } : {}),
+				});
+			} catch (err) {
+				reportError(err);
+				process.exit(1);
+			}
+		});
+
+	const bible = program
+		.command("bible")
+		.description("Manage the bible/ folder");
+
+	bible
+		.command("init [template]")
+		.description(
+			"Initialize bible/ from a template (blank, romance, fantasy, mystery, scifi)",
+		)
+		.option("-t, --template <name>", "template name (positional alternative)")
+		.action(
+			async (positional: string | undefined, opts: { template?: string }) => {
+				try {
+					const template = positional ?? opts.template;
+					await bibleInit(template);
+				} catch (err) {
+					reportError(err);
+					process.exit(1);
+				}
+			},
+		);
+
+	bible
+		.command("show")
+		.description("Print the bible/ folder as a tree")
+		.action(async () => {
+			try {
+				await bibleShow();
+			} catch (err) {
+				reportError(err);
+				process.exit(1);
+			}
+		});
+
+	bible
+		.command("edit [file]")
+		.description("Open bible/ (or a specific file) in $EDITOR")
+		.action(async (file: string | undefined) => {
+			try {
+				await bibleEdit(file);
+			} catch (err) {
+				reportError(err);
+				process.exit(1);
+			}
+		});
+
+	bible
+		.command("validate")
+		.description("Check for missing or empty required sections")
+		.action(async () => {
+			try {
+				await bibleValidate();
+			} catch (err) {
+				reportError(err);
+				process.exit(1);
+			}
+		});
+
+	bible
+		.command("add <section>")
+		.description("Interactively append an entry to a bible/ file")
+		.action(async (section: string) => {
+			try {
+				await bibleAdd(section);
 			} catch (err) {
 				reportError(err);
 				process.exit(1);

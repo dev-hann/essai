@@ -251,5 +251,71 @@ describe("write command", () => {
 
 			await expect(writeChapterCommand(99, { cwd: tmp })).rejects.toThrow();
 		});
+
+		it("resolves 'next' to latest+1 and still injects memory", async () => {
+			const { loadBible } = await import("@essai/core");
+			vi.mocked(loadBible).mockResolvedValueOnce({
+				characters: {},
+				relationships: [],
+				emotion: [],
+				chapters: new Map([
+					[1, { number: 1, title: "첫 만남", scenes: [] }],
+					[2, { number: 2, title: "두 번째", scenes: [] }],
+					[3, { number: 3, title: "세 번째", scenes: [] }],
+				]),
+				style: [],
+				tone: [],
+				constraints: [],
+				additionalContext: {},
+			});
+			await fs.mkdir(path.join(tmp, "chapters"));
+			await fs.writeFile(
+				path.join(tmp, "chapters", "001.md"),
+				"prior",
+				"utf-8",
+			);
+			await fs.writeFile(
+				path.join(tmp, "chapters", "002.md"),
+				"prior",
+				"utf-8",
+			);
+			memoryMocks.loadRecent.mockResolvedValue([
+				{
+					chapter: 2,
+					title: "두 번째",
+					wordCount: 5,
+					events: ["이전 사건"],
+					emotions: [],
+					foreshadowing: [],
+					facts: ["사실"],
+					characterState: {},
+				},
+			]);
+			writerMocks.writeChapter.mockResolvedValue({
+				content: "3화 본문",
+				wordCount: 5,
+			});
+			summarizerMocks.summarize.mockResolvedValue({
+				chapter: 3,
+				title: "세 번째",
+				wordCount: 5,
+				events: [],
+				emotions: [],
+				foreshadowing: [],
+				facts: [],
+				characterState: {},
+			});
+
+			await writeChapterCommand("next", { cwd: tmp });
+
+			expect(writerMocks.writeChapter).toHaveBeenCalledWith(
+				3,
+				expect.objectContaining({
+					memorySummaries: expect.arrayContaining([
+						expect.objectContaining({ chapter: 2 }),
+					]),
+				}),
+			);
+		});
 	});
 });

@@ -3,12 +3,26 @@
 export { loadBible } from "./bible/loader.js";
 // Bible
 export {
+	findEmotionStage,
+	parseChapterRange,
 	parseChapters,
 	parseCharacters,
 	parseEmotion,
 	parseList,
 	parseRelationships,
 } from "./bible/parser.js";
+export type {
+	ParsedTemplate,
+	Template,
+	TemplateName,
+} from "./bible/templates.js";
+export {
+	isSupportedTemplateName,
+	listTemplates,
+	loadTemplate,
+	parseTemplateFrontmatter,
+	TEMPLATE_NAMES,
+} from "./bible/templates.js";
 export type {
 	BibleData,
 	ChapterPlan,
@@ -19,6 +33,12 @@ export type {
 export { ProjectConfig } from "./config/project-config.js";
 export type { LlmConfigData, ProjectConfigData } from "./config/schema.js";
 export { llmConfigSchema, projectConfigSchema } from "./config/schema.js";
+export type {
+	ChapterEditorOptions,
+	PartialRewriteOptions,
+} from "./editor/chapter-editor.js";
+// Editor
+export { ChapterEditor } from "./editor/chapter-editor.js";
 export type { SystemPromptOptions } from "./llm/craft-rules.js";
 // Craft rules
 export {
@@ -51,6 +71,9 @@ export {
 	memoryEmotionSchema,
 	memoryForeshadowingSchema,
 } from "./memory/types.js";
+export type { ReviewOptions } from "./reviewer/chapter-reviewer.js";
+// Reviewer
+export { ChapterReviewer } from "./reviewer/chapter-reviewer.js";
 export type {
 	WriteChapterOptions,
 	WriteChapterResult,
