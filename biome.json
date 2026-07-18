@@ -1,26 +1,23 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.4/schema.json",
-  "vcs": {
-    "enabled": true,
-    "clientKind": "git",
-    "useIgnoreFile": true
-  },
-  "linter": {
-    "enabled": true,
-    "rules": {
-      "recommended": true,
-      "correctness": {
-        "noUnusedVariables": "error"
-      },
-      "suspicious": {
-        "noExplicitAny": "error"
-      },
-      "style": {
-        "useImportType": "error"
-      }
-    }
-  },
-  "files": {
-    "ignore": ["**/dist/**", "**/node_modules/**", "**/.turbo/**"]
-  }
+	"$schema": "https://biomejs.dev/schemas/2.5.4/schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true,
+			"correctness": {
+				"noUnusedVariables": "error"
+			},
+			"suspicious": {
+				"noExplicitAny": "error"
+			},
+			"style": {
+				"useImportType": "error"
+			}
+		}
+	}
 }
