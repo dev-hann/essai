@@ -1,0 +1,20 @@
+{
+  "name": "essai",
+  "private": true,
+  "version": "0.0.0",
+  "description": "AI writing tool where the author holds the pencil.",
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "lint": "biome check .",
+    "format": "biome format --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.4",
+    "turbo": "^2.10.5",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}
