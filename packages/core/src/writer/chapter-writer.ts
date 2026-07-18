@@ -4,7 +4,7 @@ import { streamText } from "ai";
 import type { BibleData } from "../bible/types.js";
 import type { ProjectConfig } from "../config/project-config.js";
 import { buildWriterPrompt } from "../llm/prompts.js";
-import { createModel } from "../llm/provider.js";
+import { createModel, thinkingProviderOptions } from "../llm/provider.js";
 import type { ChapterMemory } from "../memory/types.js";
 
 export interface WriteChapterOptions {

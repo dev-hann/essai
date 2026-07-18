@@ -1,5 +1,8 @@
 // Config
 
+export type { BibleAgentCallbacks } from "./bible/bible-agent.js";
+// Bible Agent
+export { BibleAgent } from "./bible/bible-agent.js";
 export { loadBible } from "./bible/loader.js";
 // Bible
 export {
