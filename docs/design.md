@@ -29,14 +29,14 @@ AI 글쓰기에서 반복되는 세 가지 문제:
 AI는 bible을 읽고 그 안에서만 글을 쓴다. bible에 없는 설정은 만들지 않는다.
 
 ```
-bible.md 구조:
-- 캐릭터 (이름, 나이, 성격, 말투, 배경)
-- 인물 관계
-- 감정 곡선 (단계별 감정 변화)
-- 챕터 계획 (각 화의 핵심 장면과 목표)
-- 필체/문체 (구어체, 문장 길이, 시점 등)
-- 톤/분위기 (잔잔하게, 유머러스하게 등)
-- 금지 사항 ("이 설정 추가하지 마", "이 톤은 유지해")
+bible/ 폴더 구조:
+├── characters.md      # 캐릭터 (이름, 나이, 성격, 말투, 배경)
+├── relationships.md   # 인물 관계
+├── emotion.md         # 감정 곡선 (단계별 감정 변화)
+├── chapters.md        # 챕터 계획 (각 화의 핵심 장면과 목표)
+├── style.md           # 필체/문체 (구어체, 문장 길이, 시점 등)
+├── tone.md            # 톤/분위기 (잔잔하게, 유머러스하게 등)
+└── constraints.md     # 금지 사항 ("이 설정 추가하지 마", "이 톤은 유지해")
 ```
 
 ### Chapter (챕터)
@@ -151,17 +151,18 @@ bible.md 구조:
 ### 모듈별 책임
 
 **Bible** (설정 관리)
-- bible.md를 읽고 파싱 (Markdown 섹션 → 구조화된 데이터)
-- 캐릭터, 감정 곡선, 챕터 계획을 구조화된 데이터로 제공
-- 작성 중인 챕터에 해당하는 챕터 계획만 추출
-- 템플릿 제공 (romance, SF, 미스터리 등 — 단, 템플릿일 뿐 강제 아님)
-- AI 에이전트 대화형 인터페이스: 작가와 대화하면서 설정을 추출
+- bible/ 폴더의 각 Markdown 파일을 읽고 파싱
+- 파일별 역할: characters.md, relationships.md, emotion.md, chapters.md, style.md, tone.md, constraints.md
+- 챕터 작성 시: characters + relationships + 해당 화 chapters + style + tone + constraints를 조합하여 프롬프트에 주입
+- AI 에이전트 대화형 인터페이스: 작가와 대화하면서 각 파일을 개별적으로 채움
   - AI가 답변을 분석해 다음 질문을 동적으로 생성
   - 템플릿별 대화 가이드라인(어떤 순서로 뭘 물어볼지)은 가지되, 고정 순차가 아님
   - 사용자가 "이 정도면 됐어" 하면 대화 종료
-- 추출된 정보를 bible.md에 구조화하여 자동 저장
-- 점진적 작성: add 명령으로 언제든 대화 재개
-  - add character, add chapter, add relationship
+- 추출된 정보를 각 파일에 구조화하여 자동 저장
+- 점진적 작성: add 명령으로 특정 파일만 업데이트
+  - add character → characters.md에 추가
+  - add chapter 3 → chapters.md에 3화 계획 추가
+  - add relationship → relationships.md에 추가
 
 **Writer** (챕터 생성)
 - Bible(설정) + Memory(이전 챕터 요약)를 조합해서 프롬프트 생성
@@ -288,7 +289,14 @@ essai/
 ```
 my-novel/
 ├── essai.json                  # 프로젝트 설정 (모델, 언어, 글자수)
-├── bible.md                    # 설정서 (AI 에이전트 대화로 생성, 수동 수정 가능)
+├── bible/                      # 설정서 (AI 에이전트 대화로 생성, 수동 수정 가능)
+│   ├── characters.md           # 캐릭터
+│   ├── relationships.md        # 인물 관계
+│   ├── emotion.md              # 감정 곡선
+│   ├── chapters.md             # 챕터 계획
+│   ├── style.md                # 필체/문체
+│   ├── tone.md                 # 톤/분위기
+│   └── constraints.md          # 금지 사항
 ├── chapters/
 │   ├── 001.md                  # 1화
 │   ├── 002.md                  # 2화

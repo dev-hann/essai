@@ -27,9 +27,9 @@
 ### 핵심 모듈
 
 **Bible** (설정 관리)
-- 캐릭터, 세계관, 감정 곡선, 챕터 계획
-- Markdown + YAML frontmatter
-- 버전 관리 (git 친화적)
+- bible/ 폴더에 파일별로 분리: characters.md, relationships.md, emotion.md, chapters.md, style.md, tone.md, constraints.md
+- AI 에이전트와 대화하면서 각 파일을 개별적으로 채움
+- Markdown + YAML frontmatter, git 친화적
 
 **Writer** (챕터 생성)
 - bible + 이전 챕터 요약을 context로 주입
@@ -89,15 +89,22 @@ essai/
 ```
 my-novel/
 ├── essai.json                # 프로젝트 설정 (모델, 언어 등)
-├── bible.md                  # 설정서 (캐릭터, 감정선, 챕터 계획)
+├── bible/                    # 설정서 (파일별 분리)
+│   ├── characters.md
+│   ├── relationships.md
+│   ├── emotion.md
+│   ├── chapters.md
+│   ├── style.md
+│   ├── tone.md
+│   └── constraints.md
 ├── chapters/
 │   ├── 001.md                # 1화
 │   ├── 002.md                # 2화
 │   └── ...
-├── memory/
-│   ├── summaries.json        # 챕터별 자동 요약
-│   └── context.json          # 현재 스토리 상태
-└── reviews/                  # 검토 리포트 (선택적)
+├── memory/                   # 자동 생성
+│   ├── 001.json              # 1화 요약
+│   └── ...
+└── exports/                  # 내보낸 파일
 ```
 
 ## 기술 스택
