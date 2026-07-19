@@ -20,6 +20,7 @@ import { listChapters } from "./commands/list.js";
 import { readChapter } from "./commands/read.js";
 import { reviewChapterCommand } from "./commands/review.js";
 import { rewriteChapterCommand } from "./commands/rewrite.js";
+import { serveCommand } from "./commands/serve.js";
 import { showStatus } from "./commands/status.js";
 import { writeChapterCommand } from "./commands/write.js";
 
@@ -58,6 +59,24 @@ export function buildProgram(): Command {
 			try {
 				const projectPath = await createProject(name);
 				process.stdout.write(`Created project at ${projectPath}\n`);
+			} catch (err) {
+				reportError(err);
+				process.exit(1);
+			}
+		});
+
+	program
+		.command("serve [port]")
+		.description("Start the web UI server (defaults to port 3000)")
+		.action(async (port: string | undefined) => {
+			try {
+				const n = port ? Number.parseInt(port, 10) : 3000;
+				if (!Number.isFinite(n) || n < 1 || n > 65535) {
+					throw new Error(
+						`Invalid port: ${port}. Use an integer between 1 and 65535.`,
+					);
+				}
+				await serveCommand(n);
 			} catch (err) {
 				reportError(err);
 				process.exit(1);
