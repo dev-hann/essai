@@ -19,5 +19,17 @@
 				"useImportType": "error"
 			}
 		}
-	}
+	},
+	"overrides": [
+		{
+			"includes": ["packages/web/**/*.css"],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noUnknownAtRules": "off"
+					}
+				}
+			}
+		}
+	]
 }
