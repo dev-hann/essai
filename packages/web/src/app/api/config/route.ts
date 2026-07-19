@@ -1,51 +1,95 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
-import { ProjectConfig, projectConfigSchema } from "@essai/core";
-import { type NextRequest, NextResponse } from "next/server";
-import { getProjectDir } from "../../../lib/projectDir";
+import { ProjectConfig } from "@essai/core";
+import { NextResponse } from "next/server";
+import { getProjectDir } from "@/lib/project-dir.js";
+
+const CONFIG_FILENAME = "essai.json";
+const MASKED_KEY = "***";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+	const dir = getProjectDir();
 	try {
-		const config = await ProjectConfig.load(getProjectDir());
-		return NextResponse.json(config.toJSON());
+		const config = await ProjectConfig.load(dir);
+		return NextResponse.json({
+			name: config.name,
+			language: config.language,
+			chapterWords: config.chapterWords,
+			llm: { ...config.llm, apiKey: config.llm.apiKey ? MASKED_KEY : "" },
+		});
 	} catch (err) {
-		const message = err instanceof Error ? err.message : "load failed";
-		return NextResponse.json({ error: message }, { status: 500 });
+		return NextResponse.json(
+			{
+				error: err instanceof Error ? err.message : String(err),
+			},
+			{ status: 500 },
+		);
 	}
 }
 
-export async function POST(req: NextRequest) {
+interface ConfigRequestBody {
+	name?: string;
+	language?: string;
+	chapterWords?: number;
+	llm?: {
+		baseUrl?: string;
+		apiKey?: string;
+		model?: string;
+		temperature?: number;
+		maxTokens?: number;
+		thinkingEnabled?: boolean;
+	};
+}
+
+export async function POST(req: Request) {
+	const dir = getProjectDir();
+	let body: ConfigRequestBody;
 	try {
-		const body = (await req.json()) as Record<string, unknown>;
-		const existing = await ProjectConfig.load(getProjectDir());
-		const existingJson = existing.toJSON();
+		body = (await req.json()) as ConfigRequestBody;
+	} catch {
+		return NextResponse.json({ error: "잘못된 JSON" }, { status: 400 });
+	}
 
-		const merged = {
-			...existingJson,
-			...body,
-			llm: {
-				...existingJson.llm,
-				...((body.llm as Record<string, unknown> | undefined) ?? {}),
-			},
-		};
+	let existing: ProjectConfig;
+	try {
+		existing = await ProjectConfig.load(dir);
+	} catch {
+		// no config yet — fall back to env-derived skeleton
+		existing = ProjectConfig.fromEnv();
+	}
 
-		if (merged.llm.apiKey === "***") {
-			merged.llm.apiKey = existingJson.llm.apiKey;
-		}
+	const next = new ProjectConfig({
+		name: body.name ?? existing.name,
+		language: body.language ?? existing.language,
+		chapterWords: body.chapterWords ?? existing.chapterWords,
+		llm: {
+			baseUrl: body.llm?.baseUrl ?? existing.llm.baseUrl,
+			apiKey:
+				body.llm?.apiKey && body.llm.apiKey !== MASKED_KEY
+					? body.llm.apiKey
+					: existing.llm.apiKey,
+			model: body.llm?.model ?? existing.llm.model,
+			temperature: body.llm?.temperature ?? existing.llm.temperature,
+			maxTokens: body.llm?.maxTokens ?? existing.llm.maxTokens,
+			thinkingEnabled:
+				body.llm?.thinkingEnabled ?? existing.llm.thinkingEnabled,
+		},
+	});
 
-		const parsed = projectConfigSchema.parse(merged);
-		const config = new ProjectConfig(parsed);
-		const dir = getProjectDir();
-
-		const file = path.join(dir, "essai.json");
-		const payload = { ...config.toJSON(), llm: { ...config.llm } };
-		await fs.writeFile(file, `${JSON.stringify(payload, null, 2)}\n`, "utf-8");
-
-		return NextResponse.json({ ok: true });
+	try {
+		await next.save(dir);
+		return NextResponse.json({
+			name: next.name,
+			language: next.language,
+			chapterWords: next.chapterWords,
+			llm: { ...next.llm, apiKey: next.llm.apiKey ? MASKED_KEY : "" },
+		});
 	} catch (err) {
-		const message = err instanceof Error ? err.message : "save failed";
-		return NextResponse.json({ error: message }, { status: 500 });
+		return NextResponse.json(
+			{
+				error: err instanceof Error ? err.message : String(err),
+			},
+			{ status: 500 },
+		);
 	}
 }

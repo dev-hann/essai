@@ -1,48 +1,56 @@
-import { promises as fs } from "node:fs";
 import path from "node:path";
-import { type NextRequest, NextResponse } from "next/server";
-import { ChapterReviewer, ProjectConfig, loadBible } from "@essai/core";
-import { getProjectDir } from "../../../../../lib/projectDir";
+import { ChapterReviewer, loadBible, ProjectConfig } from "@essai/core";
+import { NextResponse } from "next/server";
+import { readChapterFile } from "@/lib/chapters.js";
+import { getProjectDir } from "@/lib/project-dir.js";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 300;
 
-const PAD_WIDTH = 3;
-
-function padChapter(n: number): string {
-	return n.toString().padStart(PAD_WIDTH, "0");
+interface ReviewBody {
+	rules?: string;
 }
 
-export async function POST(
-	_req: NextRequest,
-	{ params }: { params: Promise<{ n: string }> },
-) {
-	try {
-		const { n } = await params;
-		const number = Number(n);
-		if (!Number.isFinite(number)) {
-			return NextResponse.json({ error: "bad chapter" }, { status: 400 });
-		}
+interface RouteContext {
+	params: Promise<{ n: string }>;
+}
 
-		const dir = getProjectDir();
-		const file = path.join(dir, "chapters", `${padChapter(number)}.md`);
-		let content: string;
-		try {
-			content = await fs.readFile(file, "utf-8");
-		} catch {
-			return NextResponse.json(
-				{ error: `chapter ${number} not found` },
-				{ status: 404 },
-			);
-		}
-
-		const config = await ProjectConfig.load(dir);
-		const bible = await loadBible(path.join(dir, "bible"));
-		const reviewer = new ChapterReviewer(config);
-		const result = await reviewer.reviewFull(content, bible);
-
-		return NextResponse.json(result);
-	} catch (err) {
-		const message = err instanceof Error ? err.message : "review failed";
-		return NextResponse.json({ error: message }, { status: 500 });
+export async function POST(req: Request, { params }: RouteContext) {
+	const { n } = await params;
+	const number = Number.parseInt(n, 10);
+	if (!Number.isFinite(number) || number < 1) {
+		return NextResponse.json(
+			{ error: "잘못된 챕터 번호" },
+			{ status: 400 },
+		);
 	}
+
+	let body: ReviewBody = {};
+	try {
+		body = (await req.json()) as ReviewBody;
+	} catch {
+		// empty body is fine
+	}
+
+	const cwd = getProjectDir();
+	const content = await readChapterFile(cwd, number);
+	if (content === null) {
+		return NextResponse.json(
+			{ error: `챕터 ${number}을(를) 찾을 수 없습니다` },
+			{ status: 404 },
+		);
+	}
+
+	const [config, bible] = await Promise.all([
+		ProjectConfig.load(cwd),
+		loadBible(path.join(cwd, "bible")),
+	]);
+
+	const reviewer = new ChapterReviewer(config);
+	const result = await reviewer.reviewFull(content, bible, {
+		...(body.rules ? { rules: body.rules } : {}),
+	});
+
+	return NextResponse.json(result);
 }

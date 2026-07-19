@@ -1,80 +1,81 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { NextResponse, type NextRequest } from "next/server";
-import { getProjectDir } from "../../../../lib/projectDir";
+import { loadBible } from "@essai/core";
+import { NextResponse } from "next/server";
+import {
+	chapterFilename,
+	readChapterFile,
+} from "@/lib/chapters.js";
+import { getProjectDir } from "@/lib/project-dir.js";
 
 export const dynamic = "force-dynamic";
 
-const PAD_WIDTH = 3;
-
-function padChapter(n: number): string {
-	return n.toString().padStart(PAD_WIDTH, "0");
+interface RouteContext {
+	params: Promise<{ n: string }>;
 }
 
-async function readChapter(n: number): Promise<{ content: string; file: string } | null> {
-	const chaptersDir = path.join(getProjectDir(), "chapters");
-	const file = path.join(chaptersDir, `${padChapter(n)}.md`);
+export async function GET(_req: Request, { params }: RouteContext) {
+	const { n } = await params;
+	const number = Number.parseInt(n, 10);
+	if (!Number.isFinite(number) || number < 1) {
+		return NextResponse.json({ error: "잘못된 챕터 번호" }, { status: 400 });
+	}
+
+	const cwd = getProjectDir();
+	const content = await readChapterFile(cwd, number);
+	const bible = await loadBible(path.join(cwd, "bible"));
+	const plan = bible.chapters.get(number);
+
+	if (content === null) {
+		return NextResponse.json(
+			{ error: `챕터 ${number}을(를) 찾을 수 없습니다` },
+			{ status: 404 },
+		);
+	}
+
+	return NextResponse.json({
+		number,
+		id: chapterFilename(number).slice(0, -".md".length),
+		content,
+		wordCount: content.length,
+		planned: plan !== undefined,
+		title: plan?.title ?? null,
+	});
+}
+
+interface SaveBody {
+	content?: string;
+}
+
+export async function POST(req: Request, { params }: RouteContext) {
+	const { n } = await params;
+	const number = Number.parseInt(n, 10);
+	if (!Number.isFinite(number) || number < 1) {
+		return NextResponse.json({ error: "잘못된 챕터 번호" }, { status: 400 });
+	}
+
+	let body: SaveBody;
 	try {
-		const content = await fs.readFile(file, "utf-8");
-		return { content, file };
+		body = (await req.json()) as SaveBody;
 	} catch {
-		return null;
+		return NextResponse.json({ error: "잘못된 JSON" }, { status: 400 });
 	}
-}
 
-export async function GET(
-	_req: NextRequest,
-	{ params }: { params: Promise<{ n: string }> },
-) {
-	try {
-		const { n } = await params;
-		const number = Number(n);
-		if (!Number.isFinite(number)) {
-			return NextResponse.json({ error: "bad chapter number" }, { status: 400 });
-		}
-		const result = await readChapter(number);
-		if (!result) {
-			return NextResponse.json(
-				{ error: `chapter ${number} not found` },
-				{ status: 404 },
-			);
-		}
-		return NextResponse.json({
-			number,
-			content: result.content,
-			wordCount: result.content.length,
-		});
-	} catch (err) {
-		const message = err instanceof Error ? err.message : "load failed";
-		return NextResponse.json({ error: message }, { status: 500 });
+	if (typeof body.content !== "string") {
+		return NextResponse.json(
+			{ error: "content 필드가 필요합니다" },
+			{ status: 400 },
+		);
 	}
-}
 
-export async function PUT(
-	req: NextRequest,
-	{ params }: { params: Promise<{ n: string }> },
-) {
-	try {
-		const { n } = await params;
-		const number = Number(n);
-		if (!Number.isFinite(number)) {
-			return NextResponse.json({ error: "bad chapter number" }, { status: 400 });
-		}
-		const body = (await req.json()) as { content?: unknown };
-		const content =
-			typeof body.content === "string" ? body.content : String(body.content ?? "");
+	const cwd = getProjectDir();
+	const file = path.join(cwd, "chapters", chapterFilename(number));
+	await fs.mkdir(path.dirname(file), { recursive: true });
+	await fs.writeFile(file, body.content, "utf-8");
 
-		const result = await readChapter(number);
-		if (!result) {
-			return NextResponse.json(
-				{ error: `chapter ${number} not found` },
-				{ status: 404 },
-			);
-		}
-		await fs.writeFile(result.file, content, "utf-8");
-		return NextResponse.json({ ok: true, wordCount: content.length });
-	} catch (err) {
-		const message = err instanceof Error ? err.message : "save failed";
-		return NextResponse.json({ error: message }, { status: 500 });
-	}
+	return NextResponse.json({
+		number,
+		id: chapterFilename(number).slice(0, -".md".length),
+		wordCount: body.content.length,
+	});
 }

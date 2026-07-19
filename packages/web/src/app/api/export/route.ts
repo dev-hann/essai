@@ -1,40 +1,89 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { type NextRequest, NextResponse } from "next/server";
-import { getProjectDir } from "../../../lib/projectDir";
+import { NextResponse } from "next/server";
+import { listChapterFiles } from "@/lib/chapters.js";
+import { getProjectDir } from "@/lib/project-dir.js";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(_req: NextRequest) {
+const EXPORT_DIR = "exports";
+const EXPORT_BASENAME = "full";
+
+type ExportFormat = "md" | "txt";
+
+interface ExportBody {
+	format?: ExportFormat;
+}
+
+function extensionFor(format: ExportFormat): string {
+	return format === "txt" ? "txt" : "md";
+}
+
+function chapterNumberFromName(name: string): number {
+	const match = name.match(/(\d+)/);
+	return match ? Number(match[1] ?? 0) : 0;
+}
+
+function headerFor(chapter: number, format: ExportFormat): string {
+	if (format === "txt") return "";
+	return `# Chapter ${chapter}\n\n`;
+}
+
+export async function POST(req: Request) {
+	const cwd = getProjectDir();
+
+	let body: ExportBody = {};
 	try {
-		const dir = getProjectDir();
-		const chaptersDir = path.join(dir, "chapters");
-		let entries: string[] = [];
-		try {
-			entries = await fs.readdir(chaptersDir);
-		} catch {
-			entries = [];
-		}
-
-		const sorted = entries
-			.filter((n) => /^\d+\.md$/.test(n))
-			.sort((a, b) => Number(a) - Number(b));
-
-		const parts: string[] = [];
-		for (const name of sorted) {
-			const content = await fs.readFile(path.join(chaptersDir, name), "utf-8");
-			const number = Number(name.slice(0, -3));
-			parts.push(`# ${number}화\n\n${content}`);
-		}
-
-		const exportsDir = path.join(dir, "exports");
-		await fs.mkdir(exportsDir, { recursive: true });
-		const file = path.join(exportsDir, "full.md");
-		await fs.writeFile(file, parts.join("\n\n---\n\n"), "utf-8");
-
-		return NextResponse.json({ path: file });
-	} catch (err) {
-		const message = err instanceof Error ? err.message : "export failed";
-		return NextResponse.json({ error: message }, { status: 500 });
+		body = (await req.json()) as ExportBody;
+	} catch {
+		// empty body is OK — default format
 	}
+	const format: ExportFormat = body.format === "txt" ? "txt" : "md";
+
+	const names = await listChapterFiles(cwd);
+	if (names.length === 0) {
+		return NextResponse.json(
+			{ error: "내보낼 챕터가 없습니다" },
+			{ status: 400 },
+		);
+	}
+
+	const sources: Array<{ name: string; content: string }> = [];
+	for (const name of names) {
+		try {
+			const content = await fs.readFile(
+				path.join(cwd, "chapters", name),
+				"utf-8",
+			);
+			sources.push({ name, content });
+		} catch {
+			// skip unreadable
+		}
+	}
+
+	const sorted = [...sources].sort((a, b) => {
+		const ai = chapterNumberFromName(a.name);
+		const bi = chapterNumberFromName(b.name);
+		if (ai !== bi) return ai - bi;
+		return a.name.localeCompare(b.name);
+	});
+	const blocks = sorted.map(
+		(file) =>
+			`${headerFor(chapterNumberFromName(file.name), format)}${file.content}`,
+	);
+	const bodyText = blocks.join("\n\n");
+
+	const exportDir = path.join(cwd, EXPORT_DIR);
+	await fs.mkdir(exportDir, { recursive: true });
+	const outFile = path.join(
+		exportDir,
+		`${EXPORT_BASENAME}.${extensionFor(format)}`,
+	);
+	await fs.writeFile(outFile, `${bodyText}\n`, "utf-8");
+
+	return NextResponse.json({
+		format,
+		path: path.relative(cwd, outFile),
+		chapterCount: sorted.length,
+	});
 }

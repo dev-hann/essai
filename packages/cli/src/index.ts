@@ -65,24 +65,6 @@ export function buildProgram(): Command {
 			}
 		});
 
-	program
-		.command("serve [port]")
-		.description("Start the web UI server (defaults to port 3000)")
-		.action(async (port: string | undefined) => {
-			try {
-				const n = port ? Number.parseInt(port, 10) : 3000;
-				if (!Number.isFinite(n) || n < 1 || n > 65535) {
-					throw new Error(
-						`Invalid port: ${port}. Use an integer between 1 and 65535.`,
-					);
-				}
-				await serveCommand(n);
-			} catch (err) {
-				reportError(err);
-				process.exit(1);
-			}
-		});
-
 	const config = program
 		.command("config")
 		.description("Read or update essai.json");
@@ -253,6 +235,32 @@ export function buildProgram(): Command {
 				process.exit(1);
 			}
 		});
+
+	program
+		.command("serve")
+		.description("Start the Essai web UI (Next.js dev server)")
+		.option(
+			"-p, --port <port>",
+			"port (default: 7331)",
+			(value: string) => Number.parseInt(value, 10),
+		)
+		.option(
+			"--start",
+			"run the production server instead of dev (requires next build first)",
+		)
+		.action(
+			async (opts: { port?: number; start?: boolean }) => {
+				try {
+					await serveCommand({
+						...(opts.port !== undefined ? { port: opts.port } : {}),
+						...(opts.start ? { mode: "start" as const } : {}),
+					});
+				} catch (err) {
+					reportError(err);
+					process.exit(1);
+				}
+			},
+		);
 
 	program
 		.command("review <chapter>")

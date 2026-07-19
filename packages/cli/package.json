@@ -15,8 +15,10 @@
 	"dependencies": {
 		"@ai-sdk/openai-compatible": "^3.0.12",
 		"@essai/core": "workspace:*",
+		"@essai/web": "workspace:*",
 		"ai": "^7.0.31",
 		"commander": "^14.0.0",
+		"next": "^15.1.6",
 		"zod": "^4.4.3"
 	},
 	"devDependencies": {

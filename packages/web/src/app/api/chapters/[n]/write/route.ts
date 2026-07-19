@@ -1,92 +1,97 @@
-import { promises as fs } from "node:fs";
 import path from "node:path";
-import { type NextRequest, NextResponse } from "next/server";
-import { ChapterWriter, ProjectConfig, loadBible } from "@essai/core";
-import { getProjectDir } from "../../../../../lib/projectDir";
+import {
+	ChapterWriter,
+	loadBible,
+	MemoryStore,
+	ProjectConfig,
+	Summarizer,
+} from "@essai/core";
+import { sseResponse, SseWriter } from "@/lib/sse.js";
+import { getProjectDir } from "@/lib/project-dir.js";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
-const PAD_WIDTH = 3;
+const MEMORY_DIR = "memory";
+const MEMORY_RECENT_COUNT = 3;
 
-function padChapter(n: number): string {
-	return n.toString().padStart(PAD_WIDTH, "0");
+interface WriteBody {
+	instruction?: string;
 }
 
-async function readChapter(n: number): Promise<string | null> {
-	const file = path.join(
-		getProjectDir(),
-		"chapters",
-		`${padChapter(n)}.md`,
-	);
-	try {
-		return await fs.readFile(file, "utf-8");
-	} catch {
-		return null;
+interface RouteContext {
+	params: Promise<{ n: string }>;
+}
+
+export async function POST(req: Request, { params }: RouteContext) {
+	const { n } = await params;
+	const number = Number.parseInt(n, 10);
+	if (!Number.isFinite(number) || number < 1) {
+		return new Response("invalid chapter number", { status: 400 });
 	}
-}
 
-export async function POST(
-	req: NextRequest,
-	{ params }: { params: Promise<{ n: string }> },
-) {
+	let body: WriteBody = {};
 	try {
-		const { n } = await params;
-		const number = Number(n);
-		if (!Number.isFinite(number)) {
-			return NextResponse.json({ error: "bad chapter" }, { status: 400 });
+		body = (await req.json()) as WriteBody;
+	} catch {
+		// empty body is fine
+	}
+
+	const cwd = getProjectDir();
+
+	return sseResponse(async (writer: SseWriter) => {
+		const [config, bible] = await Promise.all([
+			ProjectConfig.load(cwd),
+			loadBible(path.join(cwd, "bible")),
+		]);
+
+		const plan = bible.chapters.get(number);
+		if (!plan) {
+			throw new Error(
+				`bible/chapters.md에 ${number}화 계획이 없습니다`,
+			);
 		}
 
-		const dir = getProjectDir();
-		const config = await ProjectConfig.load(dir);
-		const bible = await loadBible(path.join(dir, "bible"));
+		const memoryStore = new MemoryStore();
+		const memorySummaries = await memoryStore.loadRecent(
+			path.join(cwd, MEMORY_DIR),
+			MEMORY_RECENT_COUNT,
+		);
 
-		const body = (await req.json().catch(() => ({}))) as {
-			instruction?: string;
-		};
-		const existing = (await readChapter(number)) ?? "";
-
-		const writer = new ChapterWriter(config, bible, dir);
-
-		const encoder = new TextEncoder();
-		const stream = new ReadableStream<Uint8Array>({
-			async start(controller) {
-				const send = (event: string, data: unknown) => {
-					controller.enqueue(
-						encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`),
-					);
-				};
-
-				try {
-					const result = await writer.writeChapter(number, {
-						...(body.instruction !== undefined
-							? { instruction: body.instruction }
-							: {}),
-						onToken: (delta) => send("token", delta),
-					});
-					send("done", {
-						content: result.content,
-						wordCount: result.wordCount,
-						previous: existing,
-					});
-				} catch (err) {
-					const message = err instanceof Error ? err.message : "write failed";
-					send("error", { message });
-				} finally {
-					controller.close();
-				}
+		const chapterWriter = new ChapterWriter(config, bible, cwd);
+		const { content, wordCount } = await chapterWriter.writeChapter(
+			number,
+			{
+				...(body.instruction ? { instruction: body.instruction } : {}),
+				memorySummaries,
+				onToken: (delta) => {
+					void writer.event("token", { delta });
+				},
 			},
-		});
+		);
 
-		return new Response(stream, {
-			headers: {
-				"Content-Type": "text/event-stream",
-				"Cache-Control": "no-cache, no-transform",
-				Connection: "keep-alive",
-			},
-		});
-	} catch (err) {
-		const message = err instanceof Error ? err.message : "write failed";
-		return NextResponse.json({ error: message }, { status: 500 });
-	}
+		await writer.event("saved", { wordCount, path: `chapters/${number.toString().padStart(3, "0")}.md` });
+
+		const summarizer = new Summarizer();
+		try {
+			const memory = await summarizer.summarize(
+				number,
+				plan.title,
+				content,
+				config,
+			);
+			await memoryStore.save(path.join(cwd, MEMORY_DIR), memory);
+		} catch (err) {
+			// summarizer failure is non-fatal; surface as comment-style event
+			await writer.event("warning", {
+				message:
+					err instanceof Error
+						? `memory save failed: ${err.message}`
+						: "memory save failed",
+			});
+		}
+
+		await writer.event("done", { wordCount });
+	});
 }

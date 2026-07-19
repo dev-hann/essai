@@ -1,80 +1,47 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { NextResponse } from "next/server";
 import { loadBible } from "@essai/core";
-import { getProjectDir } from "../../../lib/projectDir";
+import { NextResponse } from "next/server";
+import {
+	chapterNumberFromFilename,
+	listChapterFiles,
+} from "@/lib/chapters.js";
+import { getProjectDir } from "@/lib/project-dir.js";
 
 export const dynamic = "force-dynamic";
 
-const PAD_WIDTH = 3;
-
-function padChapter(n: number): string {
-	return n.toString().padStart(PAD_WIDTH, "0");
-}
-
 export async function GET() {
-	try {
-		const dir = getProjectDir();
-		const chaptersDir = path.join(dir, "chapters");
-		let entries: string[] = [];
-		try {
-			entries = await fs.readdir(chaptersDir);
-		} catch {
-			entries = [];
-		}
+	const cwd = getProjectDir();
+	const bible = await loadBible(path.join(cwd, "bible"));
+	const files = await listChapterFiles(cwd);
 
-		const bible = await loadBible(path.join(dir, "bible"));
-
-		const items = entries
-			.filter((n) => /^\d+\.md$/.test(n))
-			.map((name) => {
-				const number = Number(name.slice(0, -".md".length));
-				return { number, name };
-			})
-			.sort((a, b) => a.number - b.number);
-
-		const result = await Promise.all(
-			items.map(async ({ number, name }) => {
-				const content = await fs.readFile(
-					path.join(chaptersDir, name),
+	const chapters = await Promise.all(
+		files.map(async (name) => {
+			const number = chapterNumberFromFilename(name);
+			if (number === null) return null;
+			let wordCount = 0;
+			try {
+				const raw = await fs.readFile(
+					path.join(cwd, "chapters", name),
 					"utf-8",
 				);
-				const plan = bible.chapters.get(number);
-				return {
-					number,
-					title: plan?.title ?? `Chapter ${number}`,
-					wordCount: content.length,
-					status: "draft" as const,
-				};
-			}),
-		);
+				wordCount = raw.length;
+			} catch {
+				// ignore
+			}
+			return {
+				id: name.slice(0, -".md".length),
+				number,
+				wordCount,
+			};
+		}),
+	);
 
-		return NextResponse.json(result);
-	} catch (err) {
-		const message = err instanceof Error ? err.message : "load failed";
-		return NextResponse.json({ error: message }, { status: 500 });
-	}
-}
-
-export async function POST() {
-	try {
-		const dir = getProjectDir();
-		const chaptersDir = path.join(dir, "chapters");
-		await fs.mkdir(chaptersDir, { recursive: true });
-
-		const entries = (await fs.readdir(chaptersDir)).filter((n) =>
-			/^\d+\.md$/.test(n),
-		);
-		const nextNumber =
-			entries.length === 0
-				? 1
-				: Math.max(...entries.map((n) => Number(n.slice(0, -3)))) + 1;
-
-		const file = path.join(chaptersDir, `${padChapter(nextNumber)}.md`);
-		await fs.writeFile(file, "", "utf-8");
-		return NextResponse.json({ number: nextNumber });
-	} catch (err) {
-		const message = err instanceof Error ? err.message : "create failed";
-		return NextResponse.json({ error: message }, { status: 500 });
-	}
+	return NextResponse.json({
+		chapters: chapters.filter(
+			(c): c is { id: string; number: number; wordCount: number } =>
+				c !== null,
+		),
+		planned: Array.from(bible.chapters.keys()).sort((a, b) => a - b),
+	});
 }

@@ -1,106 +1,97 @@
-"use client";
-
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
-import Sidebar from "../../components/Sidebar";
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import { loadBible } from "@essai/core";
+import { Card } from "@/components/ui.js";
+import { getProjectDir } from "@/lib/project-dir.js";
+import { listChapterFiles } from "@/lib/chapters.js";
 
-interface ChapterListItem {
-	number: number;
-	title: string;
-	wordCount: number;
-	status: string;
-}
+export const dynamic = "force-dynamic";
 
-export default function ChaptersPage() {
-	const [items, setItems] = useState<ChapterListItem[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
+export default async function ChaptersListPage() {
+	const cwd = getProjectDir();
+	const bible = await loadBible(path.join(cwd, "bible"));
+	const files = await listChapterFiles(cwd);
 
-	const load = useCallback(async () => {
-		setLoading(true);
-		setError(null);
+	const writtenMap = new Map<number, number>();
+	for (const name of files) {
+		const num = Number.parseInt(name.replace(/\D/g, ""), 10);
+		if (!Number.isFinite(num)) continue;
 		try {
-			const res = await fetch("/api/chapters", { cache: "no-store" });
-			if (!res.ok) {
-				const data = (await res.json().catch(() => ({}))) as {
-					error?: string;
-				};
-				throw new Error(data.error ?? `HTTP ${res.status}`);
-			}
-			setItems((await res.json()) as ChapterListItem[]);
-		} catch (err) {
-			setError(err instanceof Error ? err.message : "load failed");
-		} finally {
-			setLoading(false);
+			const raw = await fs.readFile(
+				path.join(cwd, "chapters", name),
+				"utf-8",
+			);
+			writtenMap.set(num, raw.length);
+		} catch {
+			// skip
 		}
-	}, []);
+	}
 
-	useEffect(() => {
-		void load();
-	}, [load]);
-
-	const create = useCallback(async () => {
-		try {
-			const res = await fetch("/api/chapters", { method: "POST" });
-			if (!res.ok) throw new Error(`HTTP ${res.status}`);
-			const data = (await res.json()) as { number: number };
-			await load();
-			return data.number;
-		} catch (err) {
-			setError(err instanceof Error ? err.message : "create failed");
-			return null;
-		}
-	}, [load]);
+	const planned = Array.from(bible.chapters.keys()).sort((a, b) => a - b);
+	const writtenNumbers = Array.from(writtenMap.keys()).sort((a, b) => a - b);
+	const allNumbers = Array.from(
+		new Set<number>([...planned, ...writtenNumbers]),
+	).sort((a, b) => a - b);
 
 	return (
-		<div className="flex min-h-screen">
-			<Sidebar />
-			<main className="flex-1 p-8">
-				<div className="mb-6 flex items-center justify-between">
-					<h1 className="text-2xl font-semibold text-neutral-100">챕터</h1>
-					<button
-						type="button"
-						onClick={() => void create()}
-						className="rounded-md bg-neutral-100 px-3 py-1.5 text-sm font-medium text-neutral-900 transition-colors hover:bg-white"
-					>
-						새 챕터
-					</button>
-				</div>
+		<div className="max-w-4xl mx-auto p-8">
+			<header className="mb-6">
+				<h1 className="text-xl font-semibold">챕터</h1>
+				<p className="text-[12px] text-[var(--color-text-mute)] mt-1">
+					{writtenNumbers.length} / {planned.length || "?"} 화 작성 완료
+				</p>
+			</header>
 
-				{loading ? (
-					<p className="text-sm text-neutral-400">불러오는 중…</p>
-				) : error ? (
-					<p className="text-sm text-red-400">{error}</p>
-				) : items.length === 0 ? (
-					<p className="text-sm text-neutral-400">
-						아직 챕터가 없습니다. "새 챕터"를 눌러 시작하세요.
-					</p>
+			<Card>
+				{allNumbers.length === 0 ? (
+					<div className="text-[12px] text-[var(--color-text-mute)] py-4 text-center">
+						챕터가 없습니다. Bible에서 챕터 계획을 추가하세요.
+					</div>
 				) : (
-					<ul className="divide-y divide-neutral-800 rounded-lg border border-neutral-800">
-						{items.map((item) => (
-							<li key={item.number}>
-								<Link
-									href={`/chapters/${item.number}`}
-									className="flex items-center gap-4 px-4 py-3 transition-colors hover:bg-neutral-900"
-								>
-									<span className="w-10 text-sm tabular-nums text-neutral-400">
-										{item.number.toString().padStart(3, "0")}
-									</span>
-									<span className="flex-1 text-sm text-neutral-100">
-										{item.title}
-									</span>
-									<span className="text-xs tabular-nums text-neutral-500">
-										{item.wordCount.toLocaleString()}자
-									</span>
-									<span className="rounded-full bg-neutral-800 px-2 py-0.5 text-xs text-neutral-300">
-										{item.status}
-									</span>
-								</Link>
-							</li>
-						))}
+					<ul className="divide-y divide-[var(--color-border)]">
+						{allNumbers.map((n) => {
+							const plan = bible.chapters.get(n);
+							const wordCount = writtenMap.get(n);
+							const written = wordCount !== undefined;
+							return (
+								<li key={n}>
+									<Link
+										href={`/chapters/${n}`}
+										className="flex items-center justify-between px-2 py-2.5 hover:bg-[var(--color-surface-2)] rounded transition-colors"
+									>
+										<div className="flex items-center gap-3 min-w-0">
+											<span
+												className={`text-[11px] w-4 inline-flex justify-center ${written ? "text-[var(--color-success)]" : "text-[var(--color-text-mute)]"}`}
+											>
+												{written ? "✓" : "−"}
+											</span>
+											<div className="min-w-0">
+												<div className="text-[13px] truncate">
+													{n}화
+													{plan?.title
+														? `: ${plan.title}`
+														: ""}
+												</div>
+												{!written && plan && (
+													<div className="text-[11px] text-[var(--color-text-mute)]">
+														{plan.scenes.length}개 씬 · 대기 중
+													</div>
+												)}
+											</div>
+										</div>
+										<div className="text-[11px] text-[var(--color-text-mute)]">
+											{written
+												? `${(wordCount ?? 0).toLocaleString()}자`
+												: "대기"}
+										</div>
+									</Link>
+								</li>
+							);
+						})}
 					</ul>
 				)}
-			</main>
+			</Card>
 		</div>
 	);
 }
