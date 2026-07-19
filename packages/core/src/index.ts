@@ -74,7 +74,20 @@ export {
 	memoryEmotionSchema,
 	memoryForeshadowingSchema,
 } from "./memory/types.js";
-export type { ReviewOptions } from "./reviewer/chapter-reviewer.js";
+export type {
+	PipelineOptions,
+	PipelineResult,
+	PipelineStage,
+	PipelineStepResult,
+} from "./pipeline/write-pipeline.js";
+// Pipeline
+export { runWritePipeline } from "./pipeline/write-pipeline.js";
+// AI Tells
+export { detectAITells } from "./reviewer/ai-tells.js";
+export type {
+	ReviewOptions,
+	ReviewResult,
+} from "./reviewer/chapter-reviewer.js";
 // Reviewer
 export { ChapterReviewer } from "./reviewer/chapter-reviewer.js";
 export type {
