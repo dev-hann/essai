@@ -1,0 +1,25 @@
+# Dev / agent workspace
+.worktrees/
+.hermes/
+
+# Docs
+docs/
+
+# Web UI (not published as part of CLI)
+packages/web/
+
+# Build artifacts
+.next/
+.turbo/
+dist/
+build/
+*.tsbuildinfo
+
+# Tooling
+.github/
+.vscode/
+.idea/
+
+# Misc
+README.md
+LICENSE

@@ -1,11 +1,22 @@
 {
-	"name": "@essai/cli",
-	"version": "0.0.0",
-	"private": true,
+	"name": "essai",
+	"version": "0.1.0",
 	"type": "module",
 	"main": "./dist/index.js",
 	"bin": {
 		"essai": "./dist/index.js"
+	},
+	"description": "AI writing tool where the author holds the pencil — write fiction and novels with structured AI assistance.",
+	"keywords": ["ai", "fiction", "writing", "novel", "cli"],
+	"license": "MIT",
+	"author": "Hann (dev-hann)",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/dev-hann/essai.git",
+		"directory": "packages/cli"
+	},
+	"publishConfig": {
+		"access": "public"
 	},
 	"scripts": {
 		"build": "tsc -p tsconfig.json",
