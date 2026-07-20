@@ -58,7 +58,7 @@ essai/
 | `list` | 작성된 챕터 목록 + 글자 수 |
 | `status` | 프로젝트 진행 상황 |
 | `context <chapter>` | 챕터 작성 시 주입될 컨텍스트 미리보기 |
-| `rewrite <chapter>` | 챕터 처음부터 다시 생성 (덮어쓰기) |
+| `rewrite <chapter>` | 챕터 처음부터 다시 생성 (덮어쓰기, `-i` 지시문) |
 | `review <chapter>` | 챕터 품질 피드백 (`-r` 커스텀 룰) |
 | `export` | 모든 챕터를 단일 파일로 (`-f md\|txt`) |
 | `serve` | 웹 UI 시작 (`-p`, `--start`) |
