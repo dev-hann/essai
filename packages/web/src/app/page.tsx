@@ -1,209 +1,129 @@
 import Link from "next/link";
-import { Card, CardHeader, Button } from "@/components/ui.js";
-import { ExportButton } from "@/components/ExportButton.js";
-import { getProjectDir } from "@/lib/project-dir.js";
-import {
-	listChapterFiles,
-} from "@/lib/chapters.js";
-import {
-	findEmotionStage,
-	loadBible,
-	MemoryStore,
-	type ChapterMemory,
-} from "@essai/core";
-import { promises as fs } from "node:fs";
-import path from "node:path";
+import { GlobalConfig } from "@essai/core";
+import { Card, Button } from "@/components/ui.js";
+import { loadProjectStats } from "@/lib/projectStats.js";
 
 export const dynamic = "force-dynamic";
 
-const MEMORY_DIR = "memory";
-const MEMORY_RECENT_COUNT = 3;
-const OPEN_FORESHADOW_STATUSES = new Set(["unresolved", "active"]);
+interface ProjectCard {
+	id: string;
+	name: string;
+	path: string;
+	writtenCount: number;
+	plannedCount: number;
+	totalCharacters: number;
+	lastVisited: string | null;
+}
 
-async function loadDashboard() {
-	const cwd = getProjectDir();
-	const bible = await loadBible(path.join(cwd, "bible"));
-	const files = await listChapterFiles(cwd);
+async function loadProjects(): Promise<ProjectCard[]> {
+	const global = await GlobalConfig.load();
+	const entries = global.listProjects();
 
-	const writtenNumbers = files
-		.map((name) => Number.parseInt(name.replace(/\D/g, ""), 10))
-		.filter((n) => Number.isFinite(n))
-		.sort((a, b) => a - b);
-	const count = writtenNumbers.length;
-	const latest = count === 0 ? 0 : (writtenNumbers[count - 1] ?? 0);
-	const planned = Array.from(bible.chapters.keys()).sort((a, b) => a - b);
-
-	const next =
-		count === 0
-			? (planned[0] ?? null)
-			: nextAfter(latest, planned);
-
-	let totalCharacters = 0;
-	for (const name of files) {
-		const raw = await fs.readFile(
-			path.join(cwd, "chapters", name),
-			"utf-8",
-		);
-		totalCharacters += raw.length;
-	}
-
-	const recentMemories = await new MemoryStore().loadRecent(
-		path.join(cwd, MEMORY_DIR),
-		MEMORY_RECENT_COUNT,
+	const cards = await Promise.all(
+		entries.map(async (entry) => {
+			const stats = await loadProjectStats(entry.path).catch(() => ({
+				writtenCount: 0,
+				plannedCount: 0,
+				totalCharacters: 0,
+			}));
+			return {
+				id: entry.id,
+				name: entry.name,
+				path: entry.path,
+				writtenCount: stats.writtenCount,
+				plannedCount: stats.plannedCount,
+				totalCharacters: stats.totalCharacters,
+				lastVisited: entry.lastVisited ?? null,
+			};
+		}),
 	);
 
-	const emotionStage =
-		bible.emotion.length > 0 && next !== null
-			? findEmotionStage(bible.emotion, next)
-			: null;
+	cards.sort((a, b) => {
+		const at = a.lastVisited ? Date.parse(a.lastVisited) : 0;
+		const bt = b.lastVisited ? Date.parse(b.lastVisited) : 0;
+		if (at !== bt) return bt - at;
+		return a.name.localeCompare(b.name);
+	});
 
-	const openForeshadowing = collectOpenForeshadowing(recentMemories);
-
-	return {
-		writtenCount: count,
-		plannedCount: planned.length,
-		next,
-		totalCharacters,
-		emotionStage,
-		openForeshadowing,
-	};
+	return cards;
 }
 
-function nextAfter(latestWritten: number, planned: number[]): number | null {
-	if (planned.length === 0) return null;
-	const sorted = [...planned].sort((a, b) => a - b);
-	const max = sorted[sorted.length - 1];
-	if (max === undefined) return null;
-	for (let n = latestWritten + 1; n <= max; n++) {
-		if (planned.includes(n)) return n;
-	}
-	return null;
-}
-
-function collectOpenForeshadowing(memories: ChapterMemory[]) {
-	const seen = new Set<string>();
-	const out: Array<{ chapter: number; item: string }> = [];
-	for (const memory of memories) {
-		for (const item of memory.foreshadowing) {
-			if (!OPEN_FORESHADOW_STATUSES.has(item.status)) continue;
-			const key = `${item.chapterIntroduced}:${item.item}`;
-			if (seen.has(key)) continue;
-			seen.add(key);
-			out.push({
-				chapter: item.chapterIntroduced,
-				item: item.item,
-			});
-		}
-	}
-	return out;
-}
-
-export default async function DashboardPage() {
-	const data = await loadDashboard();
-	const progress =
-		data.plannedCount === 0
-			? 0
-			: Math.round((data.writtenCount / data.plannedCount) * 100);
+export default async function HomePage() {
+	const projects = await loadProjects();
 
 	return (
 		<div className="max-w-4xl mx-auto p-8">
-			<header className="mb-6">
-				<h1 className="text-xl font-semibold">대시보드</h1>
-				<p className="text-[12px] text-[var(--color-text-mute)] mt-1">
-					프로젝트 진행 상황
-				</p>
+			<header className="mb-6 flex items-center justify-between">
+				<div>
+					<h1 className="text-xl font-semibold">프로젝트</h1>
+					<p className="text-[12px] text-[var(--color-text-mute)] mt-1">
+						{projects.length === 0
+							? "등록된 프로젝트가 없습니다"
+							: `${projects.length}개 프로젝트`}
+					</p>
+				</div>
+				<Button
+					variant="primary"
+					type="button"
+					title="터미널에서 `essai init <name>` 으로 새 프로젝트를 만드세요"
+				>
+					새 프로젝트
+				</Button>
 			</header>
 
-			<div className="grid gap-4">
+			{projects.length === 0 ? (
 				<Card>
-					<CardHeader title="진행 상황" />
-					<div className="flex items-baseline justify-between mb-2">
-						<div className="text-[13px]">
-							<span className="text-[var(--color-text)]">
-								{data.plannedCount}화 중 {data.writtenCount}화 완성
-							</span>
-						</div>
-						<div className="text-[12px] text-[var(--color-text-dim)]">
-							총 {data.totalCharacters.toLocaleString()}자
+					<div className="text-[13px] text-[var(--color-text-mute)] py-6 text-center">
+						프로젝트가 없습니다.
+						<div className="mt-2 text-[11px]">
+							<code>essai init</code>으로 새 프로젝트를 만들어
+							시작하세요.
 						</div>
 					</div>
-					<div className="h-2 bg-[var(--color-surface-2)] rounded-full overflow-hidden">
-						<div
-							className="h-full bg-[var(--color-accent)] transition-all"
-							style={{ width: `${progress}%` }}
-						/>
-					</div>
-					<div className="mt-2 text-[11px] text-[var(--color-text-mute)]">
-						{progress}%
-					</div>
 				</Card>
-
-				<Card>
-					<CardHeader
-						title="감정 곡선"
-						subtitle={
-							data.next === null
-								? "다음 챕터가 없습니다"
-								: `${data.next}화 기준`
-						}
-					/>
-					{data.emotionStage ? (
-						<div className="flex items-center gap-3">
-							<div className="text-[var(--color-accent)] text-[20px] font-semibold">
-								{data.emotionStage.stage}단계
-							</div>
-							<div>
-								<div className="text-[14px]">
-									{data.emotionStage.name}
-								</div>
-								<div className="text-[11px] text-[var(--color-text-mute)]">
-									{data.emotionStage.chapters}
-								</div>
-							</div>
-						</div>
-					) : (
-						<div className="text-[12px] text-[var(--color-text-mute)]">
-							감정 단계 정보가 없습니다.
-						</div>
-					)}
-				</Card>
-
-				<Card>
-					<CardHeader
-						title={`미회수 복선 (${data.openForeshadowing.length})`}
-					/>
-					{data.openForeshadowing.length === 0 ? (
-						<div className="text-[12px] text-[var(--color-text-mute)]">
-							미회수 복선이 없습니다.
-						</div>
-					) : (
-						<ul className="space-y-1.5 text-[12px]">
-							{data.openForeshadowing.slice(0, 12).map((f, i) => (
-								<li
-									key={`${f.chapter}-${i}`}
-									className="flex gap-2"
-								>
-									<span className="text-[var(--color-text-mute)]">
-										{f.chapter}화
-									</span>
-									<span className="text-[var(--color-text-dim)]">
-										{f.item}
-									</span>
-								</li>
-							))}
-						</ul>
-					)}
-				</Card>
-
-				<div className="flex gap-2 items-start">
-					<ExportButton />
-					{data.next !== null && (
-						<Link href={`/chapters/${data.next}?action=write`}>
-							<Button variant="primary">다음 화 쓰기</Button>
-						</Link>
-					)}
+			) : (
+				<div className="grid gap-3 sm:grid-cols-2">
+					{projects.map((p) => {
+						const progress =
+							p.plannedCount === 0
+								? 0
+								: Math.round(
+										(p.writtenCount / p.plannedCount) * 100,
+									);
+						return (
+							<Link
+								key={p.id}
+								href={`/p/${p.id}`}
+								className="block"
+							>
+								<Card className="hover:border-[var(--color-border-hover)] transition-colors cursor-pointer">
+									<div className="flex items-baseline justify-between mb-2">
+										<div className="text-[14px] font-semibold truncate">
+											{p.name}
+										</div>
+										<div className="text-[10px] text-[var(--color-text-mute)] font-mono truncate ml-2">
+											{p.id}
+										</div>
+									</div>
+									<div className="text-[12px] text-[var(--color-text-dim)] mb-2">
+										{p.plannedCount === 0
+											? `${p.writtenCount}화 작성됨`
+											: `${p.plannedCount}화 중 ${p.writtenCount}화 완성`}
+										{" · "}
+										{p.totalCharacters.toLocaleString()}자
+									</div>
+									<div className="h-1.5 bg-[var(--color-surface-2)] rounded-full overflow-hidden">
+										<div
+											className="h-full bg-[var(--color-accent)] transition-all"
+											style={{ width: `${progress}%` }}
+										/>
+									</div>
+								</Card>
+							</Link>
+						);
+					})}
 				</div>
-			</div>
+			)}
 		</div>
 	);
 }

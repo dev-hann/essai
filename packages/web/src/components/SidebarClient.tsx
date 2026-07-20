@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
 	SidebarContent,
 	type ChapterStatus,
+	type ProjectOption,
 } from "@/components/Sidebar.js";
 
 interface ChaptersApiResponse {
@@ -12,15 +13,56 @@ interface ChaptersApiResponse {
 	planned: number[];
 }
 
+interface ProjectsApiResponse {
+	projects: Array<{
+		id: string;
+		name: string;
+	}>;
+}
+
+function extractProjectId(pathname: string): string | null {
+	const m = pathname.match(/^\/p\/([^/]+)/);
+	return m?.[1] ?? null;
+}
+
 export function Sidebar() {
 	const pathname = usePathname();
 	const router = useRouter();
+	const projectId = extractProjectId(pathname ?? "");
+
+	const [projects, setProjects] = useState<ProjectOption[]>([]);
 	const [chapters, setChapters] = useState<ChapterStatus[]>([]);
 	const [planned, setPlanned] = useState<number[]>([]);
 
+	useEffect(() => {
+		let cancelled = false;
+		fetch("/api/projects", { cache: "no-store" })
+			.then(async (res) => {
+				if (!res.ok) return;
+				const data = (await res.json()) as ProjectsApiResponse;
+				if (cancelled) return;
+				setProjects(
+					data.projects.map((p) => ({ id: p.id, name: p.name })),
+				);
+			})
+			.catch(() => {
+				// sidebar is non-critical
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, []);
+
 	const refresh = useCallback(async () => {
+		if (!projectId) {
+			setChapters([]);
+			setPlanned([]);
+			return;
+		}
 		try {
-			const res = await fetch("/api/chapters", { cache: "no-store" });
+			const res = await fetch(`/api/projects/${projectId}/chapters`, {
+				cache: "no-store",
+			});
 			if (!res.ok) return;
 			const data = (await res.json()) as ChaptersApiResponse;
 			setChapters(
@@ -34,21 +76,21 @@ export function Sidebar() {
 		} catch {
 			// sidebar is non-critical
 		}
-	}, []);
+	}, [projectId]);
 
 	useEffect(() => {
-		refresh();
+		void refresh();
 	}, [refresh, pathname]);
 
 	useEffect(() => {
-		const onFocus = () => refresh();
+		const onFocus = () => void refresh();
 		window.addEventListener("focus", onFocus);
 		return () => window.removeEventListener("focus", onFocus);
 	}, [refresh]);
 
 	useEffect(() => {
 		const handler = () => {
-			refresh();
+			void refresh();
 			router.refresh();
 		};
 		window.addEventListener("essai:refresh-sidebar", handler);
@@ -56,11 +98,20 @@ export function Sidebar() {
 			window.removeEventListener("essai:refresh-sidebar", handler);
 	}, [refresh, router]);
 
+	if (!projectId) {
+		// No project context (e.g. on the home page) — render nothing so the
+		// main content takes the full width.
+		return null;
+	}
+
 	return (
 		<SidebarContent
-			pathname={pathname}
+			pathname={pathname ?? "/"}
+			projectId={projectId}
+			projects={projects}
 			chapters={chapters}
 			planned={planned}
+			onProjectChange={(id) => router.push(`/p/${id}`)}
 		/>
 	);
 }

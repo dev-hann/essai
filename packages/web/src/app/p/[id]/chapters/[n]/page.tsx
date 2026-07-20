@@ -1,14 +1,14 @@
 import { notFound } from "next/navigation";
 import path from "node:path";
 import { loadBible } from "@essai/core";
-import { getProjectDir } from "@/lib/project-dir.js";
 import { readChapterFile } from "@/lib/chapters.js";
 import { ChapterDetailClient } from "@/components/ChapterDetailClient.js";
+import { resolveProjectDir } from "@/lib/projectResolver.js";
 
 export const dynamic = "force-dynamic";
 
 interface PageProps {
-	params: Promise<{ n: string }>;
+	params: Promise<{ id: string; n: string }>;
 	searchParams: Promise<{ action?: string }>;
 }
 
@@ -16,7 +16,7 @@ export default async function ChapterDetailPage({
 	params,
 	searchParams,
 }: PageProps) {
-	const { n } = await params;
+	const { id, n } = await params;
 	const number = Number.parseInt(n, 10);
 	if (!Number.isFinite(number) || number < 1) {
 		notFound();
@@ -26,7 +26,7 @@ export default async function ChapterDetailPage({
 	const initialAction =
 		action === "write" ? ("write" as const) : null;
 
-	const cwd = getProjectDir();
+	const cwd = await resolveProjectDir(id);
 	const bible = await loadBible(path.join(cwd, "bible"));
 	const content = await readChapterFile(cwd, number);
 	const plan = bible.chapters.get(number);
@@ -37,6 +37,7 @@ export default async function ChapterDetailPage({
 
 	return (
 		<ChapterDetailClient
+			projectId={id}
 			number={number}
 			initialContent={content ?? ""}
 			wordCount={content?.length ?? 0}

@@ -1,0 +1,114 @@
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import { loadBible } from "@essai/core";
+import { NextResponse } from "next/server";
+import {
+	chapterFilename,
+	readChapterFile,
+} from "@/lib/chapters.js";
+import {
+	ProjectNotFoundError,
+	resolveProjectDir,
+} from "@/lib/projectResolver.js";
+
+export const dynamic = "force-dynamic";
+
+interface RouteContext {
+	params: Promise<{ id: string; n: string }>;
+}
+
+export async function GET(_req: Request, { params }: RouteContext) {
+	const { id, n } = await params;
+	const number = Number.parseInt(n, 10);
+	if (!Number.isFinite(number) || number < 1) {
+		return NextResponse.json(
+			{ error: "잘못된 챕터 번호" },
+			{ status: 400 },
+		);
+	}
+
+	let cwd: string;
+	try {
+		cwd = await resolveProjectDir(id);
+	} catch (err) {
+		if (err instanceof ProjectNotFoundError) {
+			return NextResponse.json(
+				{ error: `Unknown project: ${id}` },
+				{ status: 404 },
+			);
+		}
+		throw err;
+	}
+
+	const content = await readChapterFile(cwd, number);
+	const bible = await loadBible(path.join(cwd, "bible"));
+	const plan = bible.chapters.get(number);
+
+	if (content === null) {
+		return NextResponse.json(
+			{ error: `챕터 ${number}을(를) 찾을 수 없습니다` },
+			{ status: 404 },
+		);
+	}
+
+	return NextResponse.json({
+		number,
+		id: chapterFilename(number).slice(0, -".md".length),
+		content,
+		wordCount: content.length,
+		planned: plan !== undefined,
+		title: plan?.title ?? null,
+	});
+}
+
+interface SaveBody {
+	content?: string;
+}
+
+export async function POST(req: Request, { params }: RouteContext) {
+	const { id, n } = await params;
+	const number = Number.parseInt(n, 10);
+	if (!Number.isFinite(number) || number < 1) {
+		return NextResponse.json(
+			{ error: "잘못된 챕터 번호" },
+			{ status: 400 },
+		);
+	}
+
+	let cwd: string;
+	try {
+		cwd = await resolveProjectDir(id);
+	} catch (err) {
+		if (err instanceof ProjectNotFoundError) {
+			return NextResponse.json(
+				{ error: `Unknown project: ${id}` },
+				{ status: 404 },
+			);
+		}
+		throw err;
+	}
+
+	let body: SaveBody;
+	try {
+		body = (await req.json()) as SaveBody;
+	} catch {
+		return NextResponse.json({ error: "잘못된 JSON" }, { status: 400 });
+	}
+
+	if (typeof body.content !== "string") {
+		return NextResponse.json(
+			{ error: "content 필드가 필요합니다" },
+			{ status: 400 },
+		);
+	}
+
+	const file = path.join(cwd, "chapters", chapterFilename(number));
+	await fs.mkdir(path.dirname(file), { recursive: true });
+	await fs.writeFile(file, body.content, "utf-8");
+
+	return NextResponse.json({
+		number,
+		id: chapterFilename(number).slice(0, -".md".length),
+		wordCount: body.content.length,
+	});
+}

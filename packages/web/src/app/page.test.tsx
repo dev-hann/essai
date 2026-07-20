@@ -1,120 +1,114 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
-// --- Mocks (hoisted) -------------------------------------------------------
-
-// Note: page.tsx imports these with `.js` suffixes (`@/lib/project-dir.js`).
-// Vite's resolver falls back from .js → .ts so vi.mock can target the
-// extension-less module specifier.
-
-const { fakeProjectDir, loadBibleMock, loadRecentMock, MemoryStoreMock } =
-	vi.hoisted(() => ({
-		fakeProjectDir: "/fake/project",
-		loadBibleMock: vi.fn(),
-		loadRecentMock: vi.fn(),
-		MemoryStoreMock: vi.fn(),
-	}));
-
-vi.mock("@/lib/project-dir", () => ({
-	getProjectDir: () => fakeProjectDir,
+const { globalConfigMock, loadProjectStatsMock } = vi.hoisted(() => ({
+	globalConfigMock: vi.fn(),
+	loadProjectStatsMock: vi.fn(),
 }));
-
-vi.mock("@/lib/chapters", () => ({
-	listChapterFiles: vi.fn().mockResolvedValue(["001.md"]),
-}));
-
-vi.mock("node:fs", async (importOriginal) => {
-	const actual = await importOriginal<typeof import("node:fs")>();
-	actual.promises.readFile = vi.fn().mockResolvedValue("본문 내용");
-	actual.promises.readdir = vi.fn().mockResolvedValue([]);
-	return actual;
-});
 
 vi.mock("@essai/core", () => ({
-	loadBible: loadBibleMock,
-	findEmotionStage: vi.fn().mockReturnValue(null),
-	MemoryStore: MemoryStoreMock,
+	GlobalConfig: {
+		load: globalConfigMock,
+		configPath: () => "/home/.essai/config.json",
+	},
 }));
 
-// Import the component AFTER mocks are in place.
-import DashboardPage from "@/app/page.js";
+vi.mock("@/lib/projectStats", () => ({
+	loadProjectStats: loadProjectStatsMock,
+}));
 
-function resetCoreMocks() {
-	loadBibleMock.mockReset();
-	loadRecentMock.mockReset();
-	MemoryStoreMock.mockReset();
+import HomePage from "@/app/page.js";
 
-	loadBibleMock.mockResolvedValue({
-		chapters: new Map([
-			[1, { title: "시작", scenes: [] }],
-			[2, { title: "두번째", scenes: [] }],
-		]),
-		emotion: [],
+function resetMocks() {
+	globalConfigMock.mockReset();
+	loadProjectStatsMock.mockReset();
+
+	globalConfigMock.mockResolvedValue({
+		listProjects: () => [
+			{
+				id: "alpha",
+				name: "Alpha",
+				path: "/proj/alpha",
+				lastVisited: "2025-01-01T00:00:00.000Z",
+			},
+			{
+				id: "beta",
+				name: "Beta",
+				path: "/proj/beta",
+				lastVisited: null,
+			},
+		],
 	});
 
-	loadRecentMock.mockResolvedValue([]);
-	MemoryStoreMock.mockImplementation(function () {
-		return { loadRecent: loadRecentMock };
+	loadProjectStatsMock.mockImplementation(async (projectDir: string) => {
+		if (projectDir === "/proj/beta") {
+			return {
+				writtenCount: 0,
+				plannedCount: 0,
+				totalCharacters: 0,
+			};
+		}
+		return {
+			writtenCount: 3,
+			plannedCount: 10,
+			totalCharacters: 9000,
+		};
 	});
 }
 
-describe("DashboardPage", () => {
+describe("HomePage (project list)", () => {
 	beforeEach(() => {
-		resetCoreMocks();
+		resetMocks();
 	});
 
 	afterEach(() => {
 		vi.clearAllMocks();
 	});
 
-	it("renders the dashboard header and progress card", async () => {
-		const tree = await DashboardPage();
+	it("lists projects from GlobalConfig", async () => {
+		const tree = await HomePage();
 		render(tree);
 
-		expect(screen.getByText("대시보드")).toBeInTheDocument();
-		expect(screen.getByText("진행 상황")).toBeInTheDocument();
-		expect(screen.getByText("감정 곡선")).toBeInTheDocument();
+		expect(screen.getByText("Alpha")).toBeInTheDocument();
+		expect(screen.getByText("Beta")).toBeInTheDocument();
+		expect(screen.getByText("2개 프로젝트")).toBeInTheDocument();
+	});
+
+	it("links each card to /p/:id", async () => {
+		const tree = await HomePage();
+		render(tree);
+
+		const alphaLink = screen.getByText("Alpha").closest("a");
+		expect(alphaLink).toHaveAttribute("href", "/p/alpha");
+	});
+
+	it("shows chapter/word stats from loadProjectStats", async () => {
+		const tree = await HomePage();
+		render(tree);
+
 		expect(
-			screen.getByText("미회수 복선 (0)"),
+			screen.getByText(/10화 중 3화 완성 · 9,000자/),
 		).toBeInTheDocument();
 	});
 
-	it("shows written vs planned chapter counts from the loaded data", async () => {
-		const tree = await DashboardPage();
+	it("renders the empty state when there are no projects", async () => {
+		globalConfigMock.mockResolvedValue({
+			listProjects: () => [],
+		});
+
+		const tree = await HomePage();
 		render(tree);
 
-		// loadBible returned 2 planned chapters, listChapterFiles returned 1 written
 		expect(
-			screen.getByText("2화 중 1화 완성"),
+			screen.getByText("등록된 프로젝트가 없습니다"),
 		).toBeInTheDocument();
+		expect(screen.getByText(/essai init/)).toBeInTheDocument();
 	});
 
-	it("shows the export button and a link to the next chapter", async () => {
-		const tree = await DashboardPage();
+	it("shows the new-project button", async () => {
+		const tree = await HomePage();
 		render(tree);
 
-		const exportBtn = screen.getByText("전체 내보내기");
-		expect(exportBtn).toBeInTheDocument();
-
-		// chapters 001 is written; next unwritten planned is 2
-		const nextLink = screen.getByText("다음 화 쓰기").closest("a");
-		expect(nextLink).toHaveAttribute(
-			"href",
-			"/chapters/2?action=write",
-		);
-	});
-
-	it("renders the emotion stage card with a fallback when none available", async () => {
-		const tree = await DashboardPage();
-		render(tree);
-
-		// "감정 곡선" lives in CardHeader; the Card wrapper is two levels up
-		// (h3 → CardHeader div → Card div).
-		const header = screen.getByText("감정 곡선");
-		const card = header.parentElement?.parentElement;
-		expect(card).not.toBeNull();
-		expect(
-			within(card!).getByText("감정 단계 정보가 없습니다."),
-		).toBeInTheDocument();
+		expect(screen.getByText("새 프로젝트")).toBeInTheDocument();
 	});
 });

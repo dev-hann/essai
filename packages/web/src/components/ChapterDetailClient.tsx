@@ -21,6 +21,7 @@ type WriteState =
 	| { kind: "error"; message: string };
 
 interface ChapterDetailClientProps {
+	projectId: string;
 	number: number;
 	initialContent: string;
 	wordCount: number;
@@ -30,6 +31,7 @@ interface ChapterDetailClientProps {
 }
 
 export function ChapterDetailClient({
+	projectId,
 	number,
 	initialContent,
 	wordCount: initialWordCount,
@@ -37,6 +39,7 @@ export function ChapterDetailClient({
 	planned,
 	initialAction,
 }: ChapterDetailClientProps) {
+	const apiBase = `/api/projects/${projectId}`;
 	const router = useRouter();
 	const [tab, setTab] = useState<"read" | "review" | "compare">(
 		initialAction === "write" && !initialContent ? "review" : "read",
@@ -143,22 +146,22 @@ export function ChapterDetailClient({
 
 	const onWrite = useCallback(() => {
 		if (!planned) return;
-		void startStream(`/api/chapters/${number}/write`, {
+		void startStream(`${apiBase}/chapters/${number}/write`, {
 			...(instruction ? { instruction } : {}),
 		});
-	}, [planned, number, instruction, startStream]);
+	}, [planned, number, instruction, startStream, apiBase]);
 
 	const onRewrite = useCallback(() => {
-		void startStream(`/api/chapters/${number}/rewrite`, {
+		void startStream(`${apiBase}/chapters/${number}/rewrite`, {
 			...(instruction ? { instruction } : {}),
 		});
-	}, [number, instruction, startStream]);
+	}, [number, instruction, startStream, apiBase]);
 
 	const onReview = useCallback(async () => {
 		setReviewBusy(true);
 		setReviewError(null);
 		try {
-			const res = await fetch(`/api/chapters/${number}/review`, {
+			const res = await fetch(`${apiBase}/chapters/${number}/review`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({}),
@@ -179,7 +182,7 @@ export function ChapterDetailClient({
 		} finally {
 			setReviewBusy(false);
 		}
-	}, [number]);
+	}, [number, apiBase]);
 
 	const onCancel = useCallback(() => {
 		abortRef.current?.abort();
@@ -371,7 +374,7 @@ export function ChapterDetailClient({
 								setRestoreBusy(true);
 								try {
 									const res = await fetch(
-										`/api/chapters/${number}`,
+										`${apiBase}/chapters/${number}`,
 										{
 											method: "POST",
 											headers: {

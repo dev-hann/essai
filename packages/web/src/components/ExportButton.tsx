@@ -4,10 +4,15 @@ import { useState } from "react";
 import { Button } from "@/components/ui.js";
 
 interface ExportButtonProps {
+	projectId: string;
 	label?: string;
 }
 
-export function ExportButton({ label = "전체 내보내기" }: ExportButtonProps) {
+export function ExportButton({
+	projectId,
+	label = "전체 내보내기",
+}: ExportButtonProps) {
+	const apiBase = `/api/projects/${projectId}`;
 	const [status, setStatus] = useState<"idle" | "working" | "done" | "error">(
 		"idle",
 	);
@@ -17,7 +22,7 @@ export function ExportButton({ label = "전체 내보내기" }: ExportButtonProp
 		setStatus("working");
 		setMessage(null);
 		try {
-			const res = await fetch("/api/export", {
+			const res = await fetch(`${apiBase}/export`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ format: "md" }),

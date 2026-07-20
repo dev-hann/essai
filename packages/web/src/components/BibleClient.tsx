@@ -10,6 +10,7 @@ interface BibleFile {
 }
 
 interface BibleClientProps {
+	projectId: string;
 	files: BibleFile[];
 }
 
@@ -21,7 +22,8 @@ interface ChatMessage {
 	kind?: "message" | "saved" | "error";
 }
 
-export function BibleClient({ files }: BibleClientProps) {
+export function BibleClient({ projectId, files }: BibleClientProps) {
+	const apiBase = `/api/projects/${projectId}`;
 	const [active, setActive] = useState(files[0]?.section ?? "characters");
 	const [contents, setContents] = useState<Record<string, string>>(() => {
 		const map: Record<string, string> = {};
@@ -57,7 +59,7 @@ export function BibleClient({ files }: BibleClientProps) {
 		if (!current) return;
 		setSaveState("saving");
 		try {
-			const res = await fetch(`/api/bible/${current.section}`, {
+			const res = await fetch(`${apiBase}/bible/${current.section}`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ content: contents[current.section] }),
@@ -71,7 +73,7 @@ export function BibleClient({ files }: BibleClientProps) {
 			setSaveState("error");
 			console.error(err);
 		}
-	}, [current, contents]);
+	}, [current, contents, apiBase]);
 
 	const pushMessage = useCallback((msg: Omit<ChatMessage, "id">) => {
 		msgId.current += 1;
@@ -127,7 +129,7 @@ export function BibleClient({ files }: BibleClientProps) {
 		setChatFinished(false);
 		setChatBusy(true);
 		try {
-			const res = await fetch("/api/bible/agent", {
+			const res = await fetch(`${apiBase}/bible/agent`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
@@ -148,7 +150,7 @@ export function BibleClient({ files }: BibleClientProps) {
 		} finally {
 			setChatBusy(false);
 		}
-	}, [handleAgentEvent, pushMessage]);
+	}, [handleAgentEvent, pushMessage, apiBase]);
 
 	const sendUserMessage = useCallback(
 		async (text: string) => {
@@ -162,7 +164,7 @@ export function BibleClient({ files }: BibleClientProps) {
 			setChatInput("");
 			setChatBusy(true);
 			try {
-				const res = await fetch("/api/bible/agent", {
+				const res = await fetch(`${apiBase}/bible/agent`, {
 					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
@@ -191,7 +193,7 @@ export function BibleClient({ files }: BibleClientProps) {
 				});
 			}
 		},
-		[chatBusy, chatFinished, chatHistory, handleAgentEvent, pushMessage],
+		[chatBusy, chatFinished, chatHistory, handleAgentEvent, pushMessage, apiBase],
 	);
 
 	return (

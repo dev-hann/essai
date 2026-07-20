@@ -1,13 +1,33 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { NextResponse } from "next/server";
 import { BIBLE_FILES } from "@/lib/chapters.js";
-import { getProjectDir } from "@/lib/project-dir.js";
-import { BibleClient } from "@/components/BibleClient.js";
+import {
+	ProjectNotFoundError,
+	resolveProjectDir,
+} from "@/lib/projectResolver.js";
 
 export const dynamic = "force-dynamic";
 
-export default async function BiblePage() {
-	const cwd = getProjectDir();
+interface RouteContext {
+	params: Promise<{ id: string }>;
+}
+
+export async function GET(_req: Request, { params }: RouteContext) {
+	const { id } = await params;
+	let cwd: string;
+	try {
+		cwd = await resolveProjectDir(id);
+	} catch (err) {
+		if (err instanceof ProjectNotFoundError) {
+			return NextResponse.json(
+				{ error: `Unknown project: ${id}` },
+				{ status: 404 },
+			);
+		}
+		throw err;
+	}
+
 	const bibleDir = path.join(cwd, "bible");
 
 	const files = await Promise.all(
@@ -28,5 +48,5 @@ export default async function BiblePage() {
 		}),
 	);
 
-	return <BibleClient files={files} />;
+	return NextResponse.json({ files });
 }

@@ -3,13 +3,18 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { loadBible } from "@essai/core";
 import { Card } from "@/components/ui.js";
-import { getProjectDir } from "@/lib/project-dir.js";
 import { listChapterFiles } from "@/lib/chapters.js";
+import { resolveProjectDir } from "@/lib/projectResolver.js";
 
 export const dynamic = "force-dynamic";
 
-export default async function ChaptersListPage() {
-	const cwd = getProjectDir();
+interface PageProps {
+	params: Promise<{ id: string }>;
+}
+
+export default async function ChaptersListPage({ params }: PageProps) {
+	const { id } = await params;
+	const cwd = await resolveProjectDir(id);
 	const bible = await loadBible(path.join(cwd, "bible"));
 	const files = await listChapterFiles(cwd);
 
@@ -57,7 +62,7 @@ export default async function ChaptersListPage() {
 							return (
 								<li key={n}>
 									<Link
-										href={`/chapters/${n}`}
+										href={`/p/${id}/chapters/${n}`}
 										className="flex items-center justify-between px-2 py-2.5 hover:bg-[var(--color-surface-2)] rounded transition-colors"
 									>
 										<div className="flex items-center gap-3 min-w-0">

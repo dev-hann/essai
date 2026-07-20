@@ -19,14 +19,19 @@ interface ConfigData {
 
 type Status = "loading" | "saving" | "saved" | "error" | "ready";
 
-export function SettingsClient() {
+interface SettingsClientProps {
+	projectId: string;
+}
+
+export function SettingsClient({ projectId }: SettingsClientProps) {
+	const apiBase = `/api/projects/${projectId}`;
 	const [data, setData] = useState<ConfigData | null>(null);
 	const [status, setStatus] = useState<Status>("loading");
 	const [message, setMessage] = useState<string | null>(null);
 
 	useEffect(() => {
 		let cancelled = false;
-		fetch("/api/config", { cache: "no-store" })
+		fetch(`${apiBase}/config`, { cache: "no-store" })
 			.then(async (res) => {
 				if (!res.ok) throw new Error(`불러오기 실패 (${res.status})`);
 				const json = (await res.json()) as ConfigData;
@@ -49,7 +54,7 @@ export function SettingsClient() {
 		setStatus("saving");
 		setMessage(null);
 		try {
-			const res = await fetch("/api/config", {
+			const res = await fetch(`${apiBase}/config`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(data),
