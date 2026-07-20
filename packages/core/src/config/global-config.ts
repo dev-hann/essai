@@ -75,8 +75,9 @@ export class GlobalConfig {
 	}
 
 	static generateProjectId(name: string, projectPath: string): string {
-		const basename = path.basename(projectPath);
-		return basename || name;
+		const basename = path.basename(projectPath) || name;
+		const suffix = Math.random().toString(36).slice(2, 8);
+		return `${basename}-${suffix}`;
 	}
 
 	addProject(name: string, projectPath: string): void {

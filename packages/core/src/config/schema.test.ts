@@ -155,9 +155,7 @@ describe("globalConfigSchema", () => {
 			],
 		});
 
-		expect(parsed.projects[0]?.lastVisited).toBe(
-			"2026-01-01T00:00:00.000Z",
-		);
+		expect(parsed.projects[0]?.lastVisited).toBe("2026-01-01T00:00:00.000Z");
 	});
 
 	it("defaults projects to an empty array when omitted", () => {

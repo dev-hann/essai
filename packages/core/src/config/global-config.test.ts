@@ -144,7 +144,9 @@ describe("GlobalConfig.save", () => {
 			defaultApiKey: "secret-key",
 			defaultChapterWords: 5000,
 			defaultTemperature: 0.4,
-			projects: [{ name: "novel-a", path: "/home/user/novel-a", id: "novel-a" }],
+			projects: [
+				{ name: "novel-a", path: "/home/user/novel-a", id: "novel-a" },
+			],
 		});
 
 		await cfg.save(home);
@@ -223,28 +225,39 @@ describe("GlobalConfig.save", () => {
 });
 
 describe("GlobalConfig.generateProjectId", () => {
-	it("returns the basename of the project path", () => {
-		expect(
-			GlobalConfig.generateProjectId("novel-a", "/home/user/novel-a"),
-		).toBe("novel-a");
+	it("returns an id prefixed by the basename of the project path", () => {
+		const id = GlobalConfig.generateProjectId("novel-a", "/home/user/novel-a");
+
+		expect(id).toMatch(/^novel-a-/);
+		expect(id.length).toBeGreaterThan("novel-a-".length);
 	});
 
-	it("returns the last path segment ignoring trailing slashes", () => {
-		expect(
-			GlobalConfig.generateProjectId("novel-a", "/home/user/novel-a/"),
-		).toBe("novel-a");
+	it("ignores trailing slashes when computing the basename", () => {
+		const id = GlobalConfig.generateProjectId("novel-a", "/home/user/novel-a/");
+
+		expect(id).toMatch(/^novel-a-/);
 	});
 
-	it("returns the basename for nested paths", () => {
-		expect(
-			GlobalConfig.generateProjectId("anything", "/Users/me/code/my-book"),
-		).toBe("my-book");
-	});
-
-	it("falls back to name when the path basename is empty", () => {
-		expect(GlobalConfig.generateProjectId("root-project", "/")).toBe(
-			"root-project",
+	it("uses the last path segment as the prefix for nested paths", () => {
+		const id = GlobalConfig.generateProjectId(
+			"anything",
+			"/Users/me/code/my-book",
 		);
+
+		expect(id).toMatch(/^my-book-/);
+	});
+
+	it("falls back to the name when the path basename is empty", () => {
+		const id = GlobalConfig.generateProjectId("root-project", "/");
+
+		expect(id).toMatch(/^root-project-/);
+	});
+
+	it("produces different ids on subsequent calls with the same arguments", () => {
+		const a = GlobalConfig.generateProjectId("novel-a", "/home/user/novel-a");
+		const b = GlobalConfig.generateProjectId("novel-a", "/home/user/novel-a");
+
+		expect(a).not.toBe(b);
 	});
 });
 
@@ -262,13 +275,11 @@ describe("GlobalConfig.addProject", () => {
 
 		cfg.addProject("novel-a", "/home/user/novel-a");
 
-		expect(cfg.listProjects()).toEqual([
-			{
-				name: "novel-a",
-				path: "/home/user/novel-a",
-				id: "novel-a",
-			},
-		]);
+		const projects = cfg.listProjects();
+		expect(projects).toHaveLength(1);
+		expect(projects[0]?.name).toBe("novel-a");
+		expect(projects[0]?.path).toBe("/home/user/novel-a");
+		expect(projects[0]?.id).toMatch(/^novel-a-/);
 	});
 
 	it("does not set lastVisited on a freshly added project", () => {
@@ -304,13 +315,11 @@ describe("GlobalConfig.addProject", () => {
 
 		cfg.addProject("new-name", "/home/user/novel-a");
 
-		expect(cfg.listProjects()).toEqual([
-			{
-				name: "new-name",
-				path: "/home/user/novel-a",
-				id: "novel-a",
-			},
-		]);
+		const projects = cfg.listProjects();
+		expect(projects).toHaveLength(1);
+		expect(projects[0]?.name).toBe("new-name");
+		expect(projects[0]?.path).toBe("/home/user/novel-a");
+		expect(projects[0]?.id).toMatch(/^novel-a-/);
 	});
 
 	it("replaces an existing project with the same name", () => {
@@ -326,9 +335,11 @@ describe("GlobalConfig.addProject", () => {
 
 		cfg.addProject("novel-a", "/new/path");
 
-		expect(cfg.listProjects()).toEqual([
-			{ name: "novel-a", path: "/new/path", id: "path" },
-		]);
+		const projects = cfg.listProjects();
+		expect(projects).toHaveLength(1);
+		expect(projects[0]?.name).toBe("novel-a");
+		expect(projects[0]?.path).toBe("/new/path");
+		expect(projects[0]?.id).toMatch(/^path-/);
 	});
 
 	it("preserves other projects when replacing a matching entry", () => {
@@ -347,10 +358,12 @@ describe("GlobalConfig.addProject", () => {
 
 		cfg.addProject("novel-a", "/a-updated");
 
-		expect(cfg.listProjects()).toEqual([
-			{ name: "novel-b", path: "/b", id: "b" },
-			{ name: "novel-a", path: "/a-updated", id: "a-updated" },
-		]);
+		const projects = cfg.listProjects();
+		expect(projects).toHaveLength(2);
+		expect(projects[0]).toEqual({ name: "novel-b", path: "/b", id: "b" });
+		expect(projects[1]?.name).toBe("novel-a");
+		expect(projects[1]?.path).toBe("/a-updated");
+		expect(projects[1]?.id).toMatch(/^a-updated-/);
 	});
 });
 
@@ -363,7 +376,9 @@ describe("GlobalConfig.getProject", () => {
 			defaultApiKey: "",
 			defaultChapterWords: 3000,
 			defaultTemperature: 0.7,
-			projects: [{ name: "novel-a", path: "/home/user/novel-a", id: "novel-a" }],
+			projects: [
+				{ name: "novel-a", path: "/home/user/novel-a", id: "novel-a" },
+			],
 		});
 
 		expect(cfg.getProject("novel-a")).toEqual({
@@ -381,7 +396,9 @@ describe("GlobalConfig.getProject", () => {
 			defaultApiKey: "",
 			defaultChapterWords: 3000,
 			defaultTemperature: 0.7,
-			projects: [{ name: "novel-a", path: "/home/user/novel-a", id: "novel-a" }],
+			projects: [
+				{ name: "novel-a", path: "/home/user/novel-a", id: "novel-a" },
+			],
 		});
 
 		expect(cfg.getProject("does-not-exist")).toBeUndefined();
@@ -395,7 +412,9 @@ describe("GlobalConfig.getProject", () => {
 			defaultApiKey: "",
 			defaultChapterWords: 3000,
 			defaultTemperature: 0.7,
-			projects: [{ name: "novel-a", path: "/home/user/novel-a", id: "novel-a" }],
+			projects: [
+				{ name: "novel-a", path: "/home/user/novel-a", id: "novel-a" },
+			],
 		});
 
 		const project = cfg.getProject("novel-a");
@@ -415,7 +434,9 @@ describe("GlobalConfig.updateLastVisited", () => {
 			defaultApiKey: "",
 			defaultChapterWords: 3000,
 			defaultTemperature: 0.7,
-			projects: [{ name: "novel-a", path: "/home/user/novel-a", id: "novel-a" }],
+			projects: [
+				{ name: "novel-a", path: "/home/user/novel-a", id: "novel-a" },
+			],
 		});
 
 		const before = Date.now();
@@ -463,7 +484,9 @@ describe("GlobalConfig.updateLastVisited", () => {
 			defaultApiKey: "",
 			defaultChapterWords: 3000,
 			defaultTemperature: 0.7,
-			projects: [{ name: "novel-a", path: "/home/user/novel-a", id: "novel-a" }],
+			projects: [
+				{ name: "novel-a", path: "/home/user/novel-a", id: "novel-a" },
+			],
 		});
 
 		cfg.updateLastVisited("does-not-exist");
@@ -522,7 +545,9 @@ describe("GlobalConfig.toJSON", () => {
 			defaultApiKey: "secret-key",
 			defaultChapterWords: 5000,
 			defaultTemperature: 0.4,
-			projects: [{ name: "novel-a", path: "/home/user/novel-a", id: "novel-a" }],
+			projects: [
+				{ name: "novel-a", path: "/home/user/novel-a", id: "novel-a" },
+			],
 		});
 
 		expect(cfg.toJSON()).toEqual({
@@ -532,7 +557,9 @@ describe("GlobalConfig.toJSON", () => {
 			defaultApiKey: "secret-key",
 			defaultChapterWords: 5000,
 			defaultTemperature: 0.4,
-			projects: [{ name: "novel-a", path: "/home/user/novel-a", id: "novel-a" }],
+			projects: [
+				{ name: "novel-a", path: "/home/user/novel-a", id: "novel-a" },
+			],
 		});
 	});
 
