@@ -74,11 +74,29 @@ export class GlobalConfig {
 		);
 	}
 
+	static generateProjectId(name: string, projectPath: string): string {
+		const basename = path.basename(projectPath);
+		return basename || name;
+	}
+
 	addProject(name: string, projectPath: string): void {
 		this.projects = this.projects.filter(
 			(p) => p.path !== projectPath && p.name !== name,
 		);
-		this.projects.push({ name, path: projectPath });
+		const id = GlobalConfig.generateProjectId(name, projectPath);
+		this.projects.push({ name, path: projectPath, id });
+	}
+
+	getProject(id: string): GlobalProjectEntry | undefined {
+		const project = this.projects.find((p) => p.id === id);
+		return project ? { ...project } : undefined;
+	}
+
+	updateLastVisited(id: string): void {
+		const project = this.projects.find((p) => p.id === id);
+		if (project) {
+			project.lastVisited = new Date().toISOString();
+		}
 	}
 
 	listProjects(): GlobalProjectEntry[] {
