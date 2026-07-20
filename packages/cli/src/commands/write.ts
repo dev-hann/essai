@@ -5,6 +5,7 @@ import {
 	loadBible,
 	MemoryStore,
 	ProjectConfig,
+	runWritePipeline,
 	Summarizer,
 } from "@essai/core";
 
@@ -12,6 +13,10 @@ export interface WriteOptions {
 	cwd?: string;
 	stdout?: { write(chunk: string): void };
 	instruction?: string;
+	/** Skip the pipeline and call ChapterWriter directly. */
+	raw?: boolean;
+	/** Run review but skip auto-fix (ignored when `raw` is true). */
+	noFix?: boolean;
 }
 
 export const CHAPTERS_DIR = "chapters";
@@ -72,14 +77,37 @@ export async function writeChapterCommand(
 		MEMORY_RECENT_COUNT,
 	);
 
-	const writer = new ChapterWriter(config, bible, cwd);
-	const { content, wordCount } = await writer.writeChapter(chapterNumber, {
-		...(opts.instruction !== undefined
-			? { instruction: opts.instruction }
-			: {}),
-		memorySummaries,
-		onToken: (delta) => stdout.write(delta),
-	});
+	let content: string;
+	let wordCount: number;
+
+	if (opts.raw) {
+		const writer = new ChapterWriter(config, bible, cwd);
+		const result = await writer.writeChapter(chapterNumber, {
+			...(opts.instruction !== undefined
+				? { instruction: opts.instruction }
+				: {}),
+			memorySummaries,
+			onToken: (delta: string) => stdout.write(delta),
+		});
+		content = result.content;
+		wordCount = result.wordCount;
+	} else {
+		const result = await runWritePipeline(
+			chapterNumber,
+			config,
+			bible,
+			cwd,
+			memorySummaries,
+			{
+				...(opts.noFix ? { noFix: true } : {}),
+				onProgress: (step) => {
+					stdout.write(`[${step.stage}] ${step.message}\n`);
+				},
+			},
+		);
+		content = result.content;
+		wordCount = result.wordCount;
+	}
 
 	stdout.write(
 		`\n\nChapter ${chapterNumber} complete (${wordCount} characters).\n`,

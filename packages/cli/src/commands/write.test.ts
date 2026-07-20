@@ -16,6 +16,10 @@ const memoryMocks = vi.hoisted(() => ({
 	save: vi.fn(),
 }));
 
+const pipelineMocks = vi.hoisted(() => ({
+	run: vi.fn(),
+}));
+
 vi.mock("@essai/core", () => ({
 	ChapterWriter: class {
 		writeChapter = writerMocks.writeChapter;
@@ -27,6 +31,7 @@ vi.mock("@essai/core", () => ({
 		loadRecent = memoryMocks.loadRecent;
 		save = memoryMocks.save;
 	},
+	runWritePipeline: pipelineMocks.run,
 	ProjectConfig: {
 		load: vi.fn().mockResolvedValue({
 			name: "demo",
@@ -82,6 +87,17 @@ function newCapture(): Captured {
 	};
 }
 
+const sampleMemory = {
+	chapter: 1,
+	title: "첫 만남",
+	wordCount: 2,
+	events: [] as string[],
+	emotions: [] as string[],
+	foreshadowing: [] as string[],
+	facts: [] as string[],
+	characterState: {} as Record<string, unknown>,
+};
+
 describe("write command", () => {
 	let tmp: string;
 
@@ -93,6 +109,13 @@ describe("write command", () => {
 		memoryMocks.loadRecent.mockResolvedValue([]);
 		memoryMocks.save.mockReset();
 		memoryMocks.save.mockResolvedValue(undefined);
+		pipelineMocks.run.mockReset();
+		pipelineMocks.run.mockResolvedValue({
+			chapter: 1,
+			steps: [],
+			content: "본문",
+			wordCount: 2,
+		});
 	});
 
 	afterEach(async () => {
@@ -118,31 +141,29 @@ describe("write command", () => {
 	});
 
 	describe("writeChapterCommand", () => {
-		it("calls ChapterWriter.writeChapter with the resolved chapter number", async () => {
-			writerMocks.writeChapter.mockResolvedValue({
+		it("calls runWritePipeline by default with the resolved chapter number", async () => {
+			pipelineMocks.run.mockResolvedValue({
+				chapter: 1,
+				steps: [],
 				content: "본문",
 				wordCount: 2,
 			});
-			summarizerMocks.summarize.mockResolvedValue({
-				chapter: 1,
-				title: "첫 만남",
-				wordCount: 2,
-				events: [],
-				emotions: [],
-				foreshadowing: [],
-				facts: [],
-				characterState: {},
-			});
+			summarizerMocks.summarize.mockResolvedValue({ ...sampleMemory });
 
 			await writeChapterCommand(1, { cwd: tmp });
 
-			expect(writerMocks.writeChapter).toHaveBeenCalledWith(
+			expect(pipelineMocks.run).toHaveBeenCalledWith(
 				1,
 				expect.anything(),
+				expect.anything(),
+				expect.anything(),
+				expect.anything(),
+				expect.anything(),
 			);
+			expect(writerMocks.writeChapter).not.toHaveBeenCalled();
 		});
 
-		it("streams deltas to stdout via onToken", async () => {
+		it("streams deltas to stdout via onToken in raw mode", async () => {
 			writerMocks.writeChapter.mockImplementation(
 				async (_n: number, opts: { onToken?: (d: string) => void }) => {
 					opts.onToken?.("a");
@@ -150,40 +171,27 @@ describe("write command", () => {
 					return { content: "ab", wordCount: 2 };
 				},
 			);
-			summarizerMocks.summarize.mockResolvedValue({
-				chapter: 1,
-				title: "t",
-				wordCount: 2,
-				events: [],
-				emotions: [],
-				foreshadowing: [],
-				facts: [],
-				characterState: {},
-			});
+			summarizerMocks.summarize.mockResolvedValue({ ...sampleMemory });
 
 			const out = newCapture();
-			await writeChapterCommand(1, { cwd: tmp, stdout: out });
+			await writeChapterCommand(1, { cwd: tmp, stdout: out, raw: true });
 
 			expect(out.output).toContain("ab");
+			expect(pipelineMocks.run).not.toHaveBeenCalled();
 		});
 
-		it("passes instruction through to writeChapter", async () => {
+		it("passes instruction through to writeChapter in raw mode", async () => {
 			writerMocks.writeChapter.mockResolvedValue({
 				content: "x",
 				wordCount: 1,
 			});
-			summarizerMocks.summarize.mockResolvedValue({
-				chapter: 1,
-				title: "t",
-				wordCount: 1,
-				events: [],
-				emotions: [],
-				foreshadowing: [],
-				facts: [],
-				characterState: {},
-			});
+			summarizerMocks.summarize.mockResolvedValue({ ...sampleMemory });
 
-			await writeChapterCommand(1, { cwd: tmp, instruction: "대화를 더 늘려" });
+			await writeChapterCommand(1, {
+				cwd: tmp,
+				raw: true,
+				instruction: "대화를 더 늘려",
+			});
 
 			expect(writerMocks.writeChapter).toHaveBeenCalledWith(
 				1,
@@ -192,42 +200,33 @@ describe("write command", () => {
 		});
 
 		it("auto-generates a memory summary after writing", async () => {
-			writerMocks.writeChapter.mockResolvedValue({
+			pipelineMocks.run.mockResolvedValue({
+				chapter: 1,
+				steps: [],
 				content: "본문",
 				wordCount: 2,
 			});
-			const memory = {
-				chapter: 1,
-				title: "첫 만남",
-				wordCount: 2,
-				events: ["e"],
-				emotions: [],
-				foreshadowing: [],
-				facts: [],
-				characterState: {},
-			};
-			summarizerMocks.summarize.mockResolvedValue(memory);
+			summarizerMocks.summarize.mockResolvedValue({ ...sampleMemory });
 
 			await writeChapterCommand(1, { cwd: tmp });
 
 			expect(summarizerMocks.summarize).toHaveBeenCalledTimes(1);
+			expect(summarizerMocks.summarize).toHaveBeenCalledWith(
+				1,
+				"첫 만남",
+				"본문",
+				expect.anything(),
+			);
 		});
 
 		it("prints the final word count line after writing", async () => {
-			writerMocks.writeChapter.mockResolvedValue({
+			pipelineMocks.run.mockResolvedValue({
+				chapter: 1,
+				steps: [],
 				content: "본문",
 				wordCount: 3021,
 			});
-			summarizerMocks.summarize.mockResolvedValue({
-				chapter: 1,
-				title: "t",
-				wordCount: 3021,
-				events: [],
-				emotions: [],
-				foreshadowing: [],
-				facts: [],
-				characterState: {},
-			});
+			summarizerMocks.summarize.mockResolvedValue({ ...sampleMemory });
 
 			const out = newCapture();
 			await writeChapterCommand(1, { cwd: tmp, stdout: out });
@@ -291,31 +290,125 @@ describe("write command", () => {
 					characterState: {},
 				},
 			]);
-			writerMocks.writeChapter.mockResolvedValue({
+			pipelineMocks.run.mockResolvedValue({
+				chapter: 3,
+				steps: [],
 				content: "3화 본문",
 				wordCount: 5,
 			});
-			summarizerMocks.summarize.mockResolvedValue({
-				chapter: 3,
-				title: "세 번째",
-				wordCount: 5,
-				events: [],
-				emotions: [],
-				foreshadowing: [],
-				facts: [],
-				characterState: {},
-			});
+			summarizerMocks.summarize.mockResolvedValue({ ...sampleMemory });
 
 			await writeChapterCommand("next", { cwd: tmp });
 
-			expect(writerMocks.writeChapter).toHaveBeenCalledWith(
+			expect(pipelineMocks.run).toHaveBeenCalledWith(
 				3,
-				expect.objectContaining({
-					memorySummaries: expect.arrayContaining([
-						expect.objectContaining({ chapter: 2 }),
-					]),
-				}),
+				expect.anything(),
+				expect.anything(),
+				expect.anything(),
+				expect.arrayContaining([expect.objectContaining({ chapter: 2 })]),
+				expect.anything(),
 			);
+		});
+
+		it("with raw option, calls ChapterWriter directly and bypasses the pipeline", async () => {
+			writerMocks.writeChapter.mockResolvedValue({
+				content: "raw content",
+				wordCount: 11,
+			});
+			summarizerMocks.summarize.mockResolvedValue({ ...sampleMemory });
+
+			await writeChapterCommand(1, { cwd: tmp, raw: true });
+
+			expect(writerMocks.writeChapter).toHaveBeenCalledWith(
+				1,
+				expect.anything(),
+			);
+			expect(pipelineMocks.run).not.toHaveBeenCalled();
+		});
+
+		it("with raw option, noFix is ignored (pipeline not invoked)", async () => {
+			writerMocks.writeChapter.mockResolvedValue({
+				content: "raw content",
+				wordCount: 11,
+			});
+			summarizerMocks.summarize.mockResolvedValue({ ...sampleMemory });
+
+			await writeChapterCommand(1, { cwd: tmp, raw: true, noFix: true });
+
+			expect(pipelineMocks.run).not.toHaveBeenCalled();
+			expect(writerMocks.writeChapter).toHaveBeenCalled();
+		});
+
+		it("with noFix option, passes noFix through to the pipeline", async () => {
+			pipelineMocks.run.mockResolvedValue({
+				chapter: 1,
+				steps: [],
+				content: "본문",
+				wordCount: 2,
+			});
+			summarizerMocks.summarize.mockResolvedValue({ ...sampleMemory });
+
+			await writeChapterCommand(1, { cwd: tmp, noFix: true });
+
+			expect(pipelineMocks.run).toHaveBeenCalledTimes(1);
+			expect(pipelineMocks.run).toHaveBeenCalledWith(
+				1,
+				expect.anything(),
+				expect.anything(),
+				expect.anything(),
+				expect.anything(),
+				expect.objectContaining({ noFix: true }),
+			);
+		});
+
+		it("without noFix, does not set noFix on the pipeline options", async () => {
+			pipelineMocks.run.mockResolvedValue({
+				chapter: 1,
+				steps: [],
+				content: "본문",
+				wordCount: 2,
+			});
+			summarizerMocks.summarize.mockResolvedValue({ ...sampleMemory });
+
+			await writeChapterCommand(1, { cwd: tmp });
+
+			expect(pipelineMocks.run).toHaveBeenCalledTimes(1);
+			const callArgs = pipelineMocks.run.mock.calls[0];
+			const optionsArg = callArgs?.[callArgs.length - 1];
+			expect(optionsArg).not.toMatchObject({ noFix: true });
+		});
+
+		it("streams pipeline step progress to stdout", async () => {
+			pipelineMocks.run.mockImplementation(
+				async (
+					_chapter: number,
+					_config: unknown,
+					_bible: unknown,
+					_dir: string,
+					_mem: unknown,
+					opts: {
+						onProgress?: (s: { stage: string; message: string }) => void;
+					},
+				) => {
+					opts.onProgress?.({
+						stage: "review",
+						message: "Review complete",
+					});
+					return {
+						chapter: 1,
+						steps: [],
+						content: "본문",
+						wordCount: 2,
+					};
+				},
+			);
+			summarizerMocks.summarize.mockResolvedValue({ ...sampleMemory });
+
+			const out = newCapture();
+			await writeChapterCommand(1, { cwd: tmp, stdout: out });
+
+			expect(out.output).toContain("[review]");
+			expect(out.output).toContain("Review complete");
 		});
 	});
 });
