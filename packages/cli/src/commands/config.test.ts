@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { GlobalConfig } from "@essai/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getConfigValue, setConfigValue, showConfig } from "./config.js";
 
@@ -132,6 +133,135 @@ describe("config commands", () => {
 			const parsed = JSON.parse(out.lines.join(""));
 			expect(parsed.name).toBe("demo");
 			expect(parsed.llm.model).toBe("glm-5.1");
+		});
+	});
+
+	describe("setConfigValue --global", () => {
+		let home: string;
+
+		beforeEach(async () => {
+			home = await fs.mkdtemp(path.join(os.tmpdir(), "essai-global-cfg-"));
+		});
+
+		afterEach(async () => {
+			await fs.rm(home, { recursive: true, force: true });
+		});
+
+		it("writes defaultModel to ~/.essai/config.json", async () => {
+			await setConfigValue("defaultModel", "glm-5.1", {
+				global: true,
+				homeDir: home,
+			});
+
+			const reloaded = await GlobalConfig.load(home);
+			expect(reloaded.defaultModel).toBe("glm-5.1");
+		});
+
+		it("writes defaultApiKey to ~/.essai/config.json", async () => {
+			await setConfigValue("defaultApiKey", "secret", {
+				global: true,
+				homeDir: home,
+			});
+
+			const reloaded = await GlobalConfig.load(home);
+			expect(reloaded.defaultApiKey).toBe("secret");
+		});
+
+		it("coerces defaultChapterWords to a number", async () => {
+			await setConfigValue("defaultChapterWords", "5000", {
+				global: true,
+				homeDir: home,
+			});
+
+			const reloaded = await GlobalConfig.load(home);
+			expect(reloaded.defaultChapterWords).toBe(5000);
+		});
+
+		it("coerces defaultTemperature to a number", async () => {
+			await setConfigValue("defaultTemperature", "0.4", {
+				global: true,
+				homeDir: home,
+			});
+
+			const reloaded = await GlobalConfig.load(home);
+			expect(reloaded.defaultTemperature).toBe(0.4);
+		});
+
+		it("creates the global config file when it does not exist", async () => {
+			await expect(fs.stat(GlobalConfig.configPath(home))).rejects.toThrow();
+
+			await setConfigValue("defaultModel", "glm-5.1", {
+				global: true,
+				homeDir: home,
+			});
+
+			const stat = await fs.stat(GlobalConfig.configPath(home));
+			expect(stat.isFile()).toBe(true);
+		});
+
+		it("preserves other global fields when updating one key", async () => {
+			const existing = new GlobalConfig({
+				defaultLanguage: "ko",
+				defaultModel: "old-model",
+				defaultBaseUrl: "https://api.example.com/v4",
+				defaultApiKey: "old-secret",
+				defaultChapterWords: 4000,
+				defaultTemperature: 0.5,
+				projects: [{ name: "novel-a", path: "/a" }],
+			});
+			await existing.save(home);
+
+			await setConfigValue("defaultModel", "new-model", {
+				global: true,
+				homeDir: home,
+			});
+
+			const reloaded = await GlobalConfig.load(home);
+			expect(reloaded.defaultModel).toBe("new-model");
+			expect(reloaded.defaultLanguage).toBe("ko");
+			expect(reloaded.defaultApiKey).toBe("old-secret");
+			expect(reloaded.defaultBaseUrl).toBe("https://api.example.com/v4");
+			expect(reloaded.listProjects()).toEqual([
+				{ name: "novel-a", path: "/a" },
+			]);
+		});
+
+		it("rejects an unknown global config key", async () => {
+			await expect(
+				setConfigValue("bogus", "1", {
+					global: true,
+					homeDir: home,
+				}),
+			).rejects.toThrow();
+		});
+
+		it("rejects a non-numeric value for defaultChapterWords", async () => {
+			await expect(
+				setConfigValue("defaultChapterWords", "not-a-number", {
+					global: true,
+					homeDir: home,
+				}),
+			).rejects.toThrow();
+		});
+
+		it("does not touch the project essai.json when --global is set", async () => {
+			await writeConfig(tmp);
+			const beforeProject = await fs.readFile(
+				path.join(tmp, "essai.json"),
+				"utf-8",
+			);
+
+			await setConfigValue("defaultModel", "glm-5.1", {
+				global: true,
+				homeDir: home,
+				cwd: tmp,
+			});
+
+			const afterProject = await fs.readFile(
+				path.join(tmp, "essai.json"),
+				"utf-8",
+			);
+			expect(afterProject).toBe(beforeProject);
 		});
 	});
 });

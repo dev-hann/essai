@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { llmConfigSchema, projectConfigSchema } from "./schema.js";
+import {
+	globalConfigSchema,
+	llmConfigSchema,
+	projectConfigSchema,
+} from "./schema.js";
 
 describe("llmConfigSchema", () => {
 	it("parses a fully-specified llm config", () => {
@@ -90,6 +94,64 @@ describe("projectConfigSchema", () => {
 					model: "glm-5.1",
 				},
 			}),
+		).toThrow();
+	});
+});
+
+describe("globalConfigSchema", () => {
+	it("applies defaults for an empty object", () => {
+		const parsed = globalConfigSchema.parse({});
+
+		expect(parsed.defaultLanguage).toBe("en");
+		expect(parsed.defaultModel).toBe("");
+		expect(parsed.defaultBaseUrl).toBe("");
+		expect(parsed.defaultApiKey).toBe("");
+		expect(parsed.defaultChapterWords).toBe(3000);
+		expect(parsed.defaultTemperature).toBe(0.7);
+		expect(parsed.projects).toEqual([]);
+	});
+
+	it("preserves explicitly-provided scalar values", () => {
+		const parsed = globalConfigSchema.parse({
+			defaultLanguage: "ko",
+			defaultModel: "glm-5.1",
+			defaultBaseUrl: "https://api.example.com/v4",
+			defaultApiKey: "secret",
+			defaultChapterWords: 5000,
+			defaultTemperature: 0.4,
+		});
+
+		expect(parsed.defaultLanguage).toBe("ko");
+		expect(parsed.defaultModel).toBe("glm-5.1");
+		expect(parsed.defaultBaseUrl).toBe("https://api.example.com/v4");
+		expect(parsed.defaultApiKey).toBe("secret");
+		expect(parsed.defaultChapterWords).toBe(5000);
+		expect(parsed.defaultTemperature).toBe(0.4);
+	});
+
+	it("parses a projects array of { name, path } entries", () => {
+		const parsed = globalConfigSchema.parse({
+			projects: [
+				{ name: "novel-a", path: "/home/user/novel-a" },
+				{ name: "novel-b", path: "/home/user/novel-b" },
+			],
+		});
+
+		expect(parsed.projects).toEqual([
+			{ name: "novel-a", path: "/home/user/novel-a" },
+			{ name: "novel-b", path: "/home/user/novel-b" },
+		]);
+	});
+
+	it("defaults projects to an empty array when omitted", () => {
+		const parsed = globalConfigSchema.parse({ defaultLanguage: "en" });
+
+		expect(parsed.projects).toEqual([]);
+	});
+
+	it("throws a ZodError when a project is missing its path", () => {
+		expect(() =>
+			globalConfigSchema.parse({ projects: [{ name: "x" }] }),
 		).toThrow();
 	});
 });

@@ -1,8 +1,11 @@
 import { promises as fs } from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { GlobalConfig } from "@essai/core";
 
 export interface InitOptions {
 	cwd?: string;
+	homeDir?: string;
 }
 
 const DEFAULT_LANGUAGE = "en";
@@ -60,7 +63,27 @@ export async function createProject(
 		await fs.mkdir(path.join(projectDir, dir), { recursive: true });
 	}
 
-	const config = defaultConfig(name ?? path.basename(projectDir));
+	const homeDir = opts.homeDir ?? os.homedir();
+	const globalConfigFile = GlobalConfig.configPath(homeDir);
+	let globalExists = false;
+	try {
+		await fs.access(globalConfigFile);
+		globalExists = true;
+	} catch {
+		globalExists = false;
+	}
+
+	const projectName = name ?? path.basename(projectDir);
+	const config = defaultConfig(projectName);
+
+	if (globalExists) {
+		const global = await GlobalConfig.load(homeDir);
+		config.language = global.defaultLanguage;
+		config.llm.model = global.defaultModel;
+		config.llm.baseUrl = global.defaultBaseUrl;
+		config.llm.apiKey = global.defaultApiKey;
+	}
+
 	await fs.writeFile(
 		configFile,
 		`${JSON.stringify(config, null, 2)}\n`,
@@ -73,6 +96,12 @@ export async function createProject(
 			content,
 			"utf-8",
 		);
+	}
+
+	if (globalExists) {
+		const global = await GlobalConfig.load(homeDir);
+		global.addProject(projectName, projectDir);
+		await global.save(homeDir);
 	}
 
 	return projectDir;

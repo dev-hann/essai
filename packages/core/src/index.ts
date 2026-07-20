@@ -33,9 +33,20 @@ export type {
 	EmotionStage,
 	Relationship,
 } from "./bible/types.js";
+export { GlobalConfig } from "./config/global-config.js";
 export { ProjectConfig } from "./config/project-config.js";
-export type { LlmConfigData, ProjectConfigData } from "./config/schema.js";
-export { llmConfigSchema, projectConfigSchema } from "./config/schema.js";
+export type {
+	GlobalConfigData,
+	GlobalProjectEntry,
+	LlmConfigData,
+	ProjectConfigData,
+} from "./config/schema.js";
+export {
+	globalConfigSchema,
+	globalProjectEntrySchema,
+	llmConfigSchema,
+	projectConfigSchema,
+} from "./config/schema.js";
 export type {
 	ChapterEditorOptions,
 	PartialRewriteOptions,

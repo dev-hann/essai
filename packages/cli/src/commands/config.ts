@@ -1,9 +1,16 @@
 import { promises as fs } from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import { projectConfigSchema } from "@essai/core";
+import {
+	GlobalConfig,
+	globalConfigSchema,
+	projectConfigSchema,
+} from "@essai/core";
 
 export interface ConfigOpts {
 	cwd?: string;
+	homeDir?: string;
+	global?: boolean;
 }
 
 export interface ShowConfigOpts extends ConfigOpts {
@@ -19,6 +26,19 @@ const LLM_KEYS = new Set([
 	"temperature",
 	"maxTokens",
 	"thinkingEnabled",
+]);
+
+const GLOBAL_NUMERIC_KEYS = new Set([
+	"defaultChapterWords",
+	"defaultTemperature",
+]);
+const GLOBAL_KEYS = new Set([
+	"defaultLanguage",
+	"defaultModel",
+	"defaultBaseUrl",
+	"defaultApiKey",
+	"defaultChapterWords",
+	"defaultTemperature",
 ]);
 
 function normalizeKey(key: string): string {
@@ -81,6 +101,50 @@ function coerce(key: string, raw: string): string | number | boolean {
 	if (raw === "false") return false;
 	return raw;
 }
+
+function coerceGlobal(key: string, raw: string): string | number {
+	if (GLOBAL_NUMERIC_KEYS.has(key)) {
+		const n = Number(raw);
+		if (Number.isNaN(n)) throw new Error(`Value for ${key} must be a number`);
+		return n;
+	}
+	return raw;
+}
+
+async function setGlobalConfigValue(
+	key: string,
+	value: string,
+	opts: ConfigOpts,
+): Promise<void> {
+	if (!GLOBAL_KEYS.has(key)) {
+		throw new Error(`Unknown global config key: ${key}`);
+	}
+	const homeDir = opts.homeDir ?? os.homedir();
+	const global = await GlobalConfig.load(homeDir);
+	const coerced = coerceGlobal(key, value);
+	switch (key) {
+		case "defaultLanguage":
+			global.defaultLanguage = coerced as string;
+			break;
+		case "defaultModel":
+			global.defaultModel = coerced as string;
+			break;
+		case "defaultBaseUrl":
+			global.defaultBaseUrl = coerced as string;
+			break;
+		case "defaultApiKey":
+			global.defaultApiKey = coerced as string;
+			break;
+		case "defaultChapterWords":
+			global.defaultChapterWords = coerced as number;
+			break;
+		case "defaultTemperature":
+			global.defaultTemperature = coerced as number;
+			break;
+	}
+	globalConfigSchema.parse(global.toJSON());
+	await global.save(homeDir);
+}
 export async function getConfigValue(
 	key: string,
 	opts: ConfigOpts = {},
@@ -94,6 +158,10 @@ export async function setConfigValue(
 	value: string,
 	opts: ConfigOpts = {},
 ): Promise<void> {
+	if (opts.global) {
+		await setGlobalConfigValue(key, value, opts);
+		return;
+	}
 	const cwd = opts.cwd ?? process.cwd();
 	const data = await readRaw(cwd);
 

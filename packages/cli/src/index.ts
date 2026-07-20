@@ -72,9 +72,15 @@ export function buildProgram(): Command {
 	config
 		.command("set <key> <value>")
 		.description("Set a config value (e.g. llm.model, language, chapterWords)")
-		.action(async (key: string, value: string) => {
+		.option(
+			"-g, --global",
+			"write to ~/.essai/config.json instead of the project essai.json",
+		)
+		.action(async (key: string, value: string, opts: { global?: boolean }) => {
 			try {
-				await setConfigValue(key, value);
+				await setConfigValue(key, value, {
+					...(opts.global ? { global: true } : {}),
+				});
 			} catch (err) {
 				reportError(err);
 				process.exit(1);
@@ -116,19 +122,28 @@ export function buildProgram(): Command {
 		.command("write <chapter>")
 		.description("Write chapter N (or 'next' for the next unfinished chapter)")
 		.option("-i, --instruction <text>", "additional instruction for the writer")
-		.action(async (chapter: string, opts: { instruction?: string }) => {
-			try {
-				const arg = parseChapterArg(chapter);
-				await writeChapterCommand(arg, {
-					...(opts.instruction !== undefined
-						? { instruction: opts.instruction }
-						: {}),
-				});
-			} catch (err) {
-				reportError(err);
-				process.exit(1);
-			}
-		});
+		.option("--raw", "skip the pipeline, just write (no review/fix)")
+		.option("--no-fix", "run review but skip auto-fix")
+		.action(
+			async (
+				chapter: string,
+				opts: { instruction?: string; raw?: boolean; fix?: boolean },
+			) => {
+				try {
+					const arg = parseChapterArg(chapter);
+					await writeChapterCommand(arg, {
+						...(opts.instruction !== undefined
+							? { instruction: opts.instruction }
+							: {}),
+						...(opts.raw ? { raw: true } : {}),
+						...(opts.fix === false ? { noFix: true } : {}),
+					});
+				} catch (err) {
+					reportError(err);
+					process.exit(1);
+				}
+			},
+		);
 
 	program
 		.command("read <chapter>")
@@ -239,28 +254,24 @@ export function buildProgram(): Command {
 	program
 		.command("serve")
 		.description("Start the Essai web UI (Next.js dev server)")
-		.option(
-			"-p, --port <port>",
-			"port (default: 7331)",
-			(value: string) => Number.parseInt(value, 10),
+		.option("-p, --port <port>", "port (default: 7331)", (value: string) =>
+			Number.parseInt(value, 10),
 		)
 		.option(
 			"--start",
 			"run the production server instead of dev (requires next build first)",
 		)
-		.action(
-			async (opts: { port?: number; start?: boolean }) => {
-				try {
-					await serveCommand({
-						...(opts.port !== undefined ? { port: opts.port } : {}),
-						...(opts.start ? { mode: "start" as const } : {}),
-					});
-				} catch (err) {
-					reportError(err);
-					process.exit(1);
-				}
-			},
-		);
+		.action(async (opts: { port?: number; start?: boolean }) => {
+			try {
+				await serveCommand({
+					...(opts.port !== undefined ? { port: opts.port } : {}),
+					...(opts.start ? { mode: "start" as const } : {}),
+				});
+			} catch (err) {
+				reportError(err);
+				process.exit(1);
+			}
+		});
 
 	program
 		.command("review <chapter>")
