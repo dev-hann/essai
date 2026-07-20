@@ -19,6 +19,8 @@ export const projectConfigSchema = z.object({
 export const globalProjectEntrySchema = z.object({
 	name: z.string(),
 	path: z.string(),
+	id: z.string(),
+	lastVisited: z.string().optional(),
 });
 
 export const globalConfigSchema = z.object({

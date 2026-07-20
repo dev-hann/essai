@@ -129,18 +129,35 @@ describe("globalConfigSchema", () => {
 		expect(parsed.defaultTemperature).toBe(0.4);
 	});
 
-	it("parses a projects array of { name, path } entries", () => {
+	it("parses a projects array of { name, path, id } entries", () => {
 		const parsed = globalConfigSchema.parse({
 			projects: [
-				{ name: "novel-a", path: "/home/user/novel-a" },
-				{ name: "novel-b", path: "/home/user/novel-b" },
+				{ name: "novel-a", path: "/home/user/novel-a", id: "novel-a" },
+				{ name: "novel-b", path: "/home/user/novel-b", id: "novel-b" },
 			],
 		});
 
 		expect(parsed.projects).toEqual([
-			{ name: "novel-a", path: "/home/user/novel-a" },
-			{ name: "novel-b", path: "/home/user/novel-b" },
+			{ name: "novel-a", path: "/home/user/novel-a", id: "novel-a" },
+			{ name: "novel-b", path: "/home/user/novel-b", id: "novel-b" },
 		]);
+	});
+
+	it("preserves lastVisited when provided", () => {
+		const parsed = globalConfigSchema.parse({
+			projects: [
+				{
+					name: "novel-a",
+					path: "/home/user/novel-a",
+					id: "novel-a",
+					lastVisited: "2026-01-01T00:00:00.000Z",
+				},
+			],
+		});
+
+		expect(parsed.projects[0]?.lastVisited).toBe(
+			"2026-01-01T00:00:00.000Z",
+		);
 	});
 
 	it("defaults projects to an empty array when omitted", () => {
@@ -151,7 +168,15 @@ describe("globalConfigSchema", () => {
 
 	it("throws a ZodError when a project is missing its path", () => {
 		expect(() =>
-			globalConfigSchema.parse({ projects: [{ name: "x" }] }),
+			globalConfigSchema.parse({ projects: [{ name: "x", id: "x" }] }),
+		).toThrow();
+	});
+
+	it("throws a ZodError when a project is missing its id", () => {
+		expect(() =>
+			globalConfigSchema.parse({
+				projects: [{ name: "x", path: "/x" }],
+			}),
 		).toThrow();
 	});
 });
