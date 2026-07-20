@@ -1,8 +1,8 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
 
 const requireFromHere = createRequire(import.meta.url);
 
@@ -80,9 +80,14 @@ export async function serveCommand(opts: ServeOptions = {}): Promise<void> {
 	const webDir = resolveWebDir();
 	const args = buildNextArgs({ port, mode });
 	const nextBin = resolveNextBinary(webDir);
+	const projectDir = path.resolve(opts.cwd ?? process.cwd());
 
 	const env: NodeJS.ProcessEnv = {
 		...process.env,
+		// Tell the web app where the user's essai project lives (bible/,
+		// chapters/, essai.json). Without this, getProjectDir() falls back to
+		// the web package's cwd, which has no project data.
+		ESSAI_PROJECT_DIR: projectDir,
 		// Ensure the web process can find @essai/core's compiled output
 		NODE_OPTIONS: process.env.NODE_OPTIONS ?? "",
 	};
