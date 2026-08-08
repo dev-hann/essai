@@ -74,9 +74,11 @@ export type {
 	CharacterState,
 	EmotionIntensity,
 	ForeshadowingStatus,
+	LanguageLevel,
 	MemoryEmotion,
 	MemoryEntry,
 	MemoryForeshadowing,
+	TimelinePosition,
 } from "./memory/types.js";
 // Memory
 export {
@@ -84,8 +86,10 @@ export {
 	characterStateSchema,
 	emotionIntensitySchema,
 	foreshadowingStatusSchema,
+	languageLevelSchema,
 	memoryEmotionSchema,
 	memoryForeshadowingSchema,
+	timelinePositionSchema,
 } from "./memory/types.js";
 export type {
 	PipelineOptions,

@@ -23,6 +23,12 @@ function validMemory() {
 		characterState: {
 			도윤: { location: "카페", mood: "호기심", knows: ["지아의 이름"] },
 		},
+		propsIntroduced: ["우산"],
+		propsUsed: ["우산", "커피잔"],
+		timelinePosition: { month: "9월" },
+		languageLevel: [
+			{ character: "지아", level: "A2", note: "짧은 인사만 가능" },
+		],
 	};
 }
 
@@ -41,9 +47,32 @@ describe("chapterMemorySchema", () => {
 			foreshadowing: [],
 			facts: [],
 			characterState: {},
+			propsIntroduced: [],
+			propsUsed: [],
+			languageLevel: [],
 		};
 
 		expect(chapterMemorySchema.parse(minimal)).toEqual(minimal);
+	});
+
+	it("fills defaults for the new memory fields when omitted", () => {
+		// Older memory files written before the props/timeline/language
+		// extension must still load via zod defaults.
+		const legacy = {
+			chapter: 3,
+			title: "레거시",
+			wordCount: 100,
+			events: ["x"],
+			emotions: [],
+			foreshadowing: [],
+			facts: [],
+			characterState: {},
+		};
+		const parsed = chapterMemorySchema.parse(legacy);
+		expect(parsed.propsIntroduced).toEqual([]);
+		expect(parsed.propsUsed).toEqual([]);
+		expect(parsed.languageLevel).toEqual([]);
+		expect(parsed.timelinePosition).toBeUndefined();
 	});
 
 	it("rejects an invalid emotion intensity", () => {

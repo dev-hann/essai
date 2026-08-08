@@ -8,7 +8,11 @@ const SUMMARY_JSON_SCHEMA = `{
   "emotions": Array<{ character: string; emotion: string; intensity: "low" | "medium" | "high"; note?: string }>,
   "foreshadowing": Array<{ item: string; status: "unresolved" | "active" | "resolved"; chapterIntroduced: number }>,
   "facts": string[],
-  "characterState": Record<string, { location: string; mood: string; knows: string[] }>
+  "characterState": Record<string, { location: string; mood: string; knows: string[] }>,
+  "propsIntroduced": string[],
+  "propsUsed": string[],
+  "timelinePosition"?: { month: string; relativeTo?: string },
+  "languageLevel": Array<{ character: string; level: string; note?: string }>
 }`;
 
 function buildSummaryPrompt(
@@ -36,6 +40,14 @@ function buildSummarySystem(language: string): string {
 		"- foreshadowing: any setup that has not been paid off yet.",
 		"- facts: objective, canonical facts the reader now knows.",
 		"- characterState: latest location, mood, and salient knowledge per character.",
+		"- propsIntroduced: physical objects that appear for the FIRST time in this",
+		"  chapter (e.g. a gun pulled in ch7). Empty array if none.",
+		"- propsUsed: every prop referenced in this chapter, whether new or returning.",
+		"- timelinePosition: optional. Where this chapter sits on the story timeline.",
+		"  Use a short anchor like '9월', 'day 3', '화요일', or '3 weeks later'.",
+		"  Omit the field entirely if the text gives no temporal marker.",
+		"- languageLevel: optional. Per-character language proficiency, only when the",
+		"  story involves language evolution (e.g. 외국인 한국어 학습자). Empty otherwise.",
 		"- Respond in the project language.",
 		`- Write every prose value in ${language}.`,
 		"",
@@ -109,6 +121,9 @@ export class Summarizer {
 					`LLM output (truncated): ${raw.slice(0, 200)}`,
 				],
 				characterState: {},
+				propsIntroduced: [],
+				propsUsed: [],
+				languageLevel: [],
 			});
 		}
 
@@ -121,6 +136,12 @@ export class Summarizer {
 			foreshadowing: parsed.foreshadowing,
 			facts: parsed.facts,
 			characterState: parsed.characterState,
+			propsIntroduced: parsed.propsIntroduced,
+			propsUsed: parsed.propsUsed,
+			...(parsed.timelinePosition !== undefined
+				? { timelinePosition: parsed.timelinePosition }
+				: {}),
+			languageLevel: parsed.languageLevel,
 		});
 	}
 }
