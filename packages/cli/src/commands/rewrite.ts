@@ -6,6 +6,8 @@ import {
 	loadBible,
 	MemoryStore,
 	ProjectConfig,
+	parseAliasesFromCharactersMd,
+	resolveCharacterAliases,
 	Summarizer,
 } from "@essai/core";
 import { type IoOpts, resolveStdout } from "./_shared.js";
@@ -44,10 +46,21 @@ export async function rewriteChapterCommand(
 	}
 
 	const memoryStore = new MemoryStore();
-	const memorySummaries = await memoryStore.loadRecent(
+	const rawMemories = await memoryStore.loadRecent(
 		path.join(cwd, MEMORY_DIR),
 		MEMORY_RECENT_COUNT,
 	);
+	let charactersMd = "";
+	try {
+		charactersMd = await fs.readFile(
+			path.join(cwd, "bible", "characters.md"),
+			"utf-8",
+		);
+	} catch (err) {
+		if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+	}
+	const aliases = parseAliasesFromCharactersMd(charactersMd);
+	const memorySummaries = resolveCharacterAliases(rawMemories, aliases);
 
 	// Backup the existing chapter before the writer overwrites it. The
 	// pipeline fix step already does this, but the standalone `rewrite`

@@ -31,6 +31,8 @@ vi.mock("@essai/core", () => ({
 		loadRecent = memoryMocks.loadRecent;
 		save = memoryMocks.save;
 	},
+	parseAliasesFromCharactersMd: () => ({}),
+	resolveCharacterAliases: (memories: unknown) => memories,
 	runWritePipeline: pipelineMocks.run,
 	ProjectConfig: {
 		load: vi.fn().mockResolvedValue({

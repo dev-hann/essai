@@ -5,6 +5,8 @@ import {
 	loadBible,
 	MemoryStore,
 	ProjectConfig,
+	parseAliasesFromCharactersMd,
+	resolveCharacterAliases,
 	runWritePipeline,
 	Summarizer,
 } from "@essai/core";
@@ -72,10 +74,24 @@ export async function writeChapterCommand(
 	}
 
 	const memoryStore = new MemoryStore();
-	const memorySummaries = await memoryStore.loadRecent(
+	const rawMemories = await memoryStore.loadRecent(
 		path.join(cwd, MEMORY_DIR),
 		MEMORY_RECENT_COUNT,
 	);
+	// Resolve character aliases declared in bible/characters.md so the
+	// LLM sees a unified character namespace (e.g. "카운터 여자" → "지아").
+	// No-op when the author hasn't declared any aliases.
+	let charactersMd = "";
+	try {
+		charactersMd = await fs.readFile(
+			path.join(cwd, "bible", "characters.md"),
+			"utf-8",
+		);
+	} catch (err) {
+		if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+	}
+	const aliases = parseAliasesFromCharactersMd(charactersMd);
+	const memorySummaries = resolveCharacterAliases(rawMemories, aliases);
 
 	let content: string;
 	let wordCount: number;

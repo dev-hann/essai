@@ -67,6 +67,11 @@ export type { WriterPrompt, WriterPromptOptions } from "./llm/prompts.js";
 export { buildWriterPrompt } from "./llm/prompts.js";
 // LLM provider
 export { createModel } from "./llm/provider.js";
+export type { CharacterAliasMap } from "./memory/alias-resolver.js";
+export {
+	parseAliasesFromCharactersMd,
+	resolveCharacterAliases,
+} from "./memory/alias-resolver.js";
 export { MemoryStore } from "./memory/memory-store.js";
 export { Summarizer } from "./memory/summarizer.js";
 export type {
