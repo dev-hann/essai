@@ -22,6 +22,7 @@ import { reviewChapterCommand } from "./commands/review.js";
 import { rewriteChapterCommand } from "./commands/rewrite.js";
 import { serveCommand } from "./commands/serve.js";
 import { showStatus } from "./commands/status.js";
+import { validateCommand } from "./commands/validate.js";
 import { writeChapterCommand } from "./commands/write.js";
 
 function reportError(err: unknown): void {
@@ -287,6 +288,34 @@ export function buildProgram(): Command {
 				}
 				await reviewChapterCommand(n, {
 					...(opts.rules !== undefined ? { rules: opts.rules } : {}),
+				});
+			} catch (err) {
+				reportError(err);
+				process.exit(1);
+			}
+		});
+
+	program
+		.command("validate <chapter>")
+		.description(
+			"Run static continuity checks (floor/prop/timeline) against bible/world.md",
+		)
+		.option(
+			"--disable <rule>",
+			"disable a specific rule (floor-consistency, forbidden-props, visa-duration)",
+		)
+		.action(async (chapter: string, opts: { disable?: string }) => {
+			try {
+				const n = parseChapterArg(chapter);
+				if (n === "next") {
+					throw new Error(
+						'"validate next" is not supported. Use a chapter number.',
+					);
+				}
+				await validateCommand(n, {
+					...(opts.disable !== undefined
+						? { disable: opts.disable.split(",") }
+						: {}),
 				});
 			} catch (err) {
 				reportError(err);

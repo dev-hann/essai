@@ -104,6 +104,26 @@ export type {
 // Reviewer
 export { ChapterReviewer } from "./reviewer/chapter-reviewer.js";
 export type {
+	StaticValidatorOptions,
+	ValidationFinding,
+	ValidationSeverity,
+} from "./validator/static-validator.js";
+export { StaticValidator } from "./validator/static-validator.js";
+// Validator (static continuity checks + world.md parser)
+export { loadWorld, parseWorld } from "./validator/world-parser.js";
+export type {
+	WorldData,
+	WorldLocation,
+	WorldProp,
+	WorldTimelineEntry,
+} from "./validator/world-types.js";
+export {
+	worldDataSchema,
+	worldLocationSchema,
+	worldPropSchema,
+	worldTimelineEntrySchema,
+} from "./validator/world-types.js";
+export type {
 	WriteChapterOptions,
 	WriteChapterResult,
 } from "./writer/chapter-writer.js";
