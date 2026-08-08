@@ -19,6 +19,7 @@ import {
 	showConfig,
 } from "./commands/config.js";
 import { contextCommand } from "./commands/context.js";
+import { doctorCommand } from "./commands/doctor.js";
 import { exportCommand } from "./commands/export.js";
 import { createProject } from "./commands/init.js";
 import { listChapters } from "./commands/list.js";
@@ -115,10 +116,13 @@ export function buildProgram(): Command {
 
 	config
 		.command("show")
-		.description("Print the full essai.json")
-		.action(async () => {
+		.description("Print the full essai.json (or ~/.essai/config.json with -g)")
+		.option("-g, --global", "print the global config instead of the project's")
+		.action(async (opts: { global?: boolean }) => {
 			try {
-				await showConfig();
+				await showConfig({
+					...(opts.global ? { global: true } : {}),
+				});
 			} catch (err) {
 				reportError(err);
 				process.exit(1);
@@ -418,6 +422,26 @@ export function buildProgram(): Command {
 					...(opts.only !== undefined
 						? { only: opts.only.split(",") as AuditDimensionId[] }
 						: {}),
+				});
+			} catch (err) {
+				reportError(err);
+				process.exit(1);
+			}
+		});
+
+	program
+		.command("doctor")
+		.description(
+			"Health-check the project: config, LLM, bible, chapters, memory, validator",
+		)
+		.option(
+			"--fail-fast",
+			"stop at the first error instead of running every check",
+		)
+		.action(async (opts: { failFast?: boolean }) => {
+			try {
+				await doctorCommand({
+					...(opts.failFast ? { failFast: true } : {}),
 				});
 			} catch (err) {
 				reportError(err);

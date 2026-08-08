@@ -15,6 +15,8 @@ export interface ConfigOpts {
 
 export interface ShowConfigOpts extends ConfigOpts {
 	stdout?: { write(chunk: string): void };
+	/** Print the global config instead of the project essai.json. */
+	global?: boolean;
 }
 
 const CONFIG_FILE = "essai.json";
@@ -193,9 +195,15 @@ export async function setConfigValue(
 }
 
 export async function showConfig(opts: ShowConfigOpts = {}): Promise<void> {
+	const stdout = opts.stdout ?? process.stdout;
+	if (opts.global) {
+		const homeDir = opts.homeDir ?? os.homedir();
+		const global = await GlobalConfig.load(homeDir);
+		stdout.write(`${JSON.stringify(global.toJSON(), null, 2)}\n`);
+		return;
+	}
 	const cwd = opts.cwd ?? process.cwd();
 	const data = await readRaw(cwd);
-	const stdout = opts.stdout ?? process.stdout;
 	stdout.write(`${JSON.stringify(data, null, 2)}\n`);
 }
 
