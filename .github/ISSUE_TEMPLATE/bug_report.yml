@@ -1,0 +1,39 @@
+---
+about: Report a continuity bug, crash, or unexpected behavior in essai
+title: "[bug] "
+labels: ["bug", "needs-triage"]
+assignees: []
+---
+
+## What happened
+
+<!-- Short description of what you observed. -->
+
+## What I expected
+
+<!-- What you thought would happen instead. -->
+
+## Reproduction
+
+```bash
+# Exact commands you ran, in order.
+essai init repro
+cd repro
+essai bible init romance
+essai write 1
+```
+
+## Environment
+
+- essai version: `essai --version` →
+- Node version: `node --version` →
+- pnpm version: `pnpm --version` →
+- OS:
+- Model + endpoint configured:
+
+## Attachments
+
+- `essai.json` (redact `apiKey`):
+- `bible/world.md` (if present):
+- Chapter file or memory JSON that triggered the issue:
+- `.bak` file (if a fix step overwrote your chapter):

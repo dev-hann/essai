@@ -1,0 +1,24 @@
+---
+about: Suggest a new validator dimension, craft rule, UI feature, or template
+title: "[feat] "
+labels: ["enhancement", "needs-triage"]
+assignees: []
+---
+
+## The problem
+
+<!-- What can't you do today, or what's painful? -->
+
+## Proposed direction
+
+<!-- Sketch the smallest version of the feature. Point to files/modules
+that would change (e.g. "add an entry to AUDIT_DIMENSIONS in
+packages/core/src/validator/continuity-auditor.ts"). -->
+
+## Alternatives considered
+
+<!-- What did you rule out and why. -->
+
+## Out of scope
+
+<!-- What this feature explicitly should NOT do, to keep scope tight. -->
