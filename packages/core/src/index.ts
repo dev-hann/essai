@@ -1,3 +1,5 @@
+import { createRequire } from "node:module";
+
 // Config
 
 export type { BibleAgentCallbacks } from "./bible/bible-agent.js";
@@ -108,4 +110,13 @@ export type {
 // Writer
 export { ChapterWriter } from "./writer/chapter-writer.js";
 
-export const CORE_VERSION = "0.0.0";
+// Resolve the version dynamically from the published package.json so a
+// future version bump doesn't require touching source. createRequire is
+// used because the build target is ESM but package.json is consumed as CJS.
+// The require runs relative to the compiled dist/index.js, so the manifest
+// is one directory up.
+const requireFromHere = createRequire(import.meta.url);
+const coreManifest = requireFromHere("../package.json") as {
+	version?: string;
+};
+export const CORE_VERSION = coreManifest.version ?? "0.0.0";

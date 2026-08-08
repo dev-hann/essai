@@ -81,6 +81,15 @@ export class ChapterWriter {
 		// (e.g. invalid URL, auth failure) so we never persist an empty chapter.
 		await resolved.text;
 
+		// Empty-content guard: refuse to write a 0-length chapter to disk.
+		// This protects both first writes and pipeline rewrites from intermittent
+		// model failures that resolve successfully but emit no tokens.
+		if (content.trim().length === 0) {
+			throw new Error(
+				`ChapterWriter produced empty content for chapter ${chapterNumber}. Aborting before disk write.`,
+			);
+		}
+
 		const chaptersDir = path.join(this.projectDir, "chapters");
 		await fs.mkdir(chaptersDir, { recursive: true });
 		const file = path.join(chaptersDir, `${padChapter(chapterNumber)}.md`);

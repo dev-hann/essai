@@ -13,16 +13,13 @@ const DEFAULT_CHAPTER_WORDS = 3000;
 
 const DIRECTORIES = ["bible", "chapters", "memory", "exports"] as const;
 
-const BIBLE_FILES: Record<string, string> = {
-	"characters.md": "# Characters\n\n<!-- ## name\n- field: value -->\n",
-	"relationships.md": "# Relationships\n\n<!-- - A -> B: description -->\n",
-	"emotion.md":
-		"# Emotion Curve\n\n<!-- ## 1 stage name (1-3)\n- character: emotion -->\n",
-	"chapters.md": "# Chapter Plan\n\n<!-- ## 1: title\n- scene -->\n",
-	"style.md": "# Writing Style\n\n<!-- - rule -->\n",
-	"tone.md": "# Tone & Mood\n\n<!-- - rule -->\n",
-	"constraints.md": "# Constraints\n\n<!-- - rule -->\n",
-};
+// init only scaffolds project-level files (essai.json + the four folders).
+// Bible content is intentionally left empty: users either run
+// `essai bible init <template>` next, or write bible/ files by hand.
+// Previously init wrote placeholder .md files into bible/ which then made
+// `bible init <template>` refuse with "bible/ already has content".
+// Keeping bible/ empty avoids that foot-gun and matches the documented UX
+// ("init" -> "bible init" -> "write").
 
 function defaultConfig(name: string) {
 	return {
@@ -89,14 +86,6 @@ export async function createProject(
 		`${JSON.stringify(config, null, 2)}\n`,
 		"utf-8",
 	);
-
-	for (const [fileName, content] of Object.entries(BIBLE_FILES)) {
-		await fs.writeFile(
-			path.join(projectDir, "bible", fileName),
-			content,
-			"utf-8",
-		);
-	}
 
 	if (globalExists) {
 		const global = await GlobalConfig.load(homeDir);

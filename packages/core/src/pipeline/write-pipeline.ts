@@ -121,12 +121,39 @@ export async function runWritePipeline(
 
 		// Rewrite with fix instruction
 		const editor = new ChapterEditor(writer as never);
-		const fixResult = await editor.rewrite(chapterNumber, {
-			instruction: fixInstruction,
-			...(memorySummaries.length > 0 ? { memorySummaries } : {}),
-		});
-		finalContent = fixResult.content;
-		finalWordCount = fixResult.wordCount;
+		try {
+			const fixResult = await editor.rewrite(chapterNumber, {
+				instruction: fixInstruction,
+				...(memorySummaries.length > 0 ? { memorySummaries } : {}),
+			});
+			// Sanity check: if the fix step somehow lost content, roll back.
+			// ChapterWriter itself throws on empty content, but a short or
+			// corrupt result (e.g. truncation, stream error) still slips past
+			// the writer guard. Restore from backup and surface a warning.
+			const minLen = Math.max(50, writeResult.wordCount / 4);
+			if (fixResult.wordCount < minLen) {
+				log({
+					stage: "fix",
+					status: "failed",
+					message: `Fix produced ${fixResult.wordCount} chars (min ${minLen}); restoring from backup`,
+				});
+				await restoreBackup(chapterFile, backupFile);
+				finalContent = writeResult.content;
+				finalWordCount = writeResult.wordCount;
+			} else {
+				finalContent = fixResult.content;
+				finalWordCount = fixResult.wordCount;
+			}
+		} catch (err) {
+			log({
+				stage: "fix",
+				status: "failed",
+				message: `Fix step failed (${err instanceof Error ? err.message : String(err)}); restoring from backup`,
+			});
+			await restoreBackup(chapterFile, backupFile);
+			finalContent = writeResult.content;
+			finalWordCount = writeResult.wordCount;
+		}
 	} else if (review.needsFix && noFix) {
 		log({
 			stage: "fix",
@@ -173,4 +200,18 @@ function buildFixInstruction(review: ReviewResult): string {
 	}
 
 	return parts.join("\n\n");
+}
+
+async function restoreBackup(
+	chapterFile: string,
+	backupFile: string,
+): Promise<void> {
+	try {
+		const backup = await fs.readFile(backupFile, "utf-8");
+		await fs.writeFile(chapterFile, backup, "utf-8");
+	} catch (err) {
+		// If even the backup read fails, leave the existing file intact and
+		// surface the error upstream via the log.
+		if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+	}
 }

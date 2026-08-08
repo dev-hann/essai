@@ -31,18 +31,26 @@ describe("createProject", () => {
 	});
 
 	it("writes essai.json with default config", async () => {
-		await createProject("my-novel", { cwd: tmp });
+		// Pass an isolated homeDir so the user's real ~/.essai/config.json
+		// (when running tests on a dev machine that has essai configured)
+		// does not leak language/model defaults into this test.
+		const home = await fs.mkdtemp(path.join(os.tmpdir(), "essai-init-home-"));
+		try {
+			await createProject("my-novel", { cwd: tmp, homeDir: home });
 
-		const raw = await fs.readFile(
-			path.join(tmp, "my-novel", "essai.json"),
-			"utf-8",
-		);
-		const config = JSON.parse(raw);
-		expect(config.name).toBe("my-novel");
-		expect(config.language).toBe("en");
-		expect(config.chapterWords).toBe(3000);
-		expect(config.llm).toBeDefined();
-		expect(config.llm.model).toBe("");
+			const raw = await fs.readFile(
+				path.join(tmp, "my-novel", "essai.json"),
+				"utf-8",
+			);
+			const config = JSON.parse(raw);
+			expect(config.name).toBe("my-novel");
+			expect(config.language).toBe("en");
+			expect(config.chapterWords).toBe(3000);
+			expect(config.llm).toBeDefined();
+			expect(config.llm.model).toBe("");
+		} finally {
+			await fs.rm(home, { recursive: true, force: true });
+		}
 	});
 
 	it("creates empty bible/, chapters/, memory/, exports/ directories", async () => {
@@ -54,14 +62,14 @@ describe("createProject", () => {
 		}
 	});
 
-	it("writes placeholder bible markdown files", async () => {
+	it("leaves bible/ empty so `bible init <template>` can populate it", async () => {
+		// Regression: BUG#3 — init used to write placeholder .md files into
+		// bible/, which then made `bible init <template>` refuse with
+		// "bible/ already has content". init now keeps bible/ empty.
 		await createProject("my-novel", { cwd: tmp });
 
-		const characters = await fs.readFile(
-			path.join(tmp, "my-novel", "bible", "characters.md"),
-			"utf-8",
-		);
-		expect(characters.length).toBeGreaterThan(0);
+		const entries = await fs.readdir(path.join(tmp, "my-novel", "bible"));
+		expect(entries).toEqual([]);
 	});
 
 	it("fails if the target directory already exists", async () => {
@@ -121,9 +129,13 @@ describe("createProject", () => {
 			await createProject("my-novel", { cwd: tmp, homeDir: home });
 
 			const reloaded = await GlobalConfig.load(home);
-			expect(reloaded.listProjects()).toEqual([
-				{ name: "my-novel", path: path.join(tmp, "my-novel") },
-			]);
+			const projects = reloaded.listProjects();
+			expect(projects).toHaveLength(1);
+			expect(projects[0]?.name).toBe("my-novel");
+			expect(projects[0]?.path).toBe(path.join(tmp, "my-novel"));
+			// id is auto-generated (see GlobalConfig.addProject / fix commit 2a7e140).
+			expect(typeof projects[0]?.id).toBe("string");
+			expect(projects[0]?.id.length).toBeGreaterThan(0);
 		});
 
 		it("leaves project defaults untouched when no global config exists", async () => {
@@ -145,6 +157,9 @@ describe("createProject", () => {
 		});
 
 		it("preserves existing global projects when registering a new one", async () => {
+			// The prior project must include an `id` to satisfy the current
+			// GlobalConfig schema (the auto-id migration happened in commit
+			// 2a7e140; legacy entries without id are no longer valid input).
 			const global = new GlobalConfig({
 				defaultLanguage: "en",
 				defaultModel: "",
@@ -152,21 +167,24 @@ describe("createProject", () => {
 				defaultApiKey: "",
 				defaultChapterWords: 3000,
 				defaultTemperature: 0.7,
-				projects: [{ name: "prior", path: "/elsewhere/prior" }],
+				projects: [
+					{ name: "prior", path: "/elsewhere/prior", id: "prior-abc" },
+				],
 			});
 			await global.save(home);
 
 			await createProject("my-novel", { cwd: tmp, homeDir: home });
 
 			const reloaded = await GlobalConfig.load(home);
-			expect(reloaded.listProjects()).toContainEqual({
+			const projects = reloaded.listProjects();
+			expect(projects).toContainEqual({
 				name: "prior",
 				path: "/elsewhere/prior",
+				id: "prior-abc",
 			});
-			expect(reloaded.listProjects()).toContainEqual({
-				name: "my-novel",
-				path: path.join(tmp, "my-novel"),
-			});
+			const created = projects.find((p) => p.name === "my-novel");
+			expect(created?.path).toBe(path.join(tmp, "my-novel"));
+			expect(typeof created?.id).toBe("string");
 		});
 	});
 });

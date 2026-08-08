@@ -1,7 +1,7 @@
 import { generateText } from "ai";
 import type { ProjectConfig } from "../config/project-config.js";
 import { createModel } from "../llm/provider.js";
-import { chapterMemorySchema, type ChapterMemory } from "./types.js";
+import { type ChapterMemory, chapterMemorySchema } from "./types.js";
 
 const SUMMARY_JSON_SCHEMA = `{
   "events": string[],
@@ -11,7 +11,11 @@ const SUMMARY_JSON_SCHEMA = `{
   "characterState": Record<string, { location: string; mood: string; knows: string[] }>
 }`;
 
-function buildSummaryPrompt(chapter: number, title: string, content: string): string {
+function buildSummaryPrompt(
+	chapter: number,
+	title: string,
+	content: string,
+): string {
 	return [
 		`Chapter ${chapter} title: ${title}`,
 		"",
@@ -58,6 +62,25 @@ export class Summarizer {
 		content: string,
 		config: ProjectConfig,
 	): Promise<ChapterMemory> {
+		// Refuse to summarize empty content: the model often replies with a
+		// human-readable error ("챕터 내용이 비어 있습니다...") instead of JSON,
+		// which crashes JSON.parse downstream. Return a minimal placeholder so
+		// callers can still save a structurally-valid memory.
+		if (content.trim().length === 0) {
+			return chapterMemorySchema.parse({
+				chapter,
+				title,
+				wordCount: 0,
+				events: [],
+				emotions: [],
+				foreshadowing: [],
+				facts: [
+					`Chapter ${chapter} (${title}) had empty content; no memory extracted.`,
+				],
+				characterState: {},
+			});
+		}
+
 		const result = await generateText({
 			model: createModel(config.llm),
 			system: buildSummarySystem(config.language),
@@ -66,7 +89,29 @@ export class Summarizer {
 			maxOutputTokens: config.llm.maxTokens,
 		});
 
-		const parsed = JSON.parse(stripCodeFence(result.text)) as Record<string, unknown>;
+		const raw = stripCodeFence(result.text);
+		let parsed: Record<string, unknown>;
+		try {
+			parsed = JSON.parse(raw) as Record<string, unknown>;
+		} catch (_err) {
+			// Model returned prose/error text instead of JSON. Fall back to a
+			// placeholder memory and surface the LLM output in `facts` so the
+			// caller can diagnose without losing the chapter pipeline.
+			return chapterMemorySchema.parse({
+				chapter,
+				title,
+				wordCount: content.length,
+				events: [],
+				emotions: [],
+				foreshadowing: [],
+				facts: [
+					`Summarizer received non-JSON response; memory extraction skipped.`,
+					`LLM output (truncated): ${raw.slice(0, 200)}`,
+				],
+				characterState: {},
+			});
+		}
+
 		return chapterMemorySchema.parse({
 			chapter,
 			title,

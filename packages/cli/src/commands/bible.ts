@@ -123,7 +123,22 @@ async function dirHasContent(dir: string): Promise<boolean> {
 		if ((err as NodeJS.ErrnoException).code === "ENOENT") return false;
 		throw err;
 	}
-	return entries.length > 0;
+	// Treat the directory as empty when every entry is either an empty file
+	// or only contains template/placeholder content. This makes
+	// `essai bible init <template>` idempotent even if `essai init` or a
+	// previous aborted `bible init` left stub files behind.
+	for (const name of entries) {
+		if (!name.endsWith(".md")) return true;
+		const fullPath = path.join(dir, name);
+		let raw: string;
+		try {
+			raw = await fs.readFile(fullPath, "utf-8");
+		} catch {
+			return true;
+		}
+		if (hasRealContent(raw)) return true;
+	}
+	return false;
 }
 
 async function dirContainsTemplates(dir: string): Promise<boolean> {
@@ -298,9 +313,14 @@ export async function bibleShow(opts: IoOpts = {}): Promise<void> {
 }
 
 function hasRealContent(content: string): boolean {
-	const stripped = content
-		.replace(/<!--[\s\S]*?-->/g, "")
-		.replace(/[#\->\s]/g, "");
+	// Strip HTML comments (template examples live there) and markdown
+	// heading markers, then look for any surviving prose tokens. Earlier
+	// versions only stripped `[#\->\s]` which left heading words like
+	// "Characters" / "Constraints" — so template-comment-only files passed
+	// validation. We additionally drop bare heading lines.
+	const withoutComments = content.replace(/<!--[\s\S]*?-->/g, "");
+	const withoutHeadings = withoutComments.replace(/^\s*#+\s.*$/gm, "");
+	const stripped = withoutHeadings.replace(/[#\->\s]/g, "");
 	return stripped.length > 0;
 }
 

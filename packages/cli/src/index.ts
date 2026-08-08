@@ -304,11 +304,20 @@ export function buildProgram(): Command {
 			"Initialize bible/ from a template (blank, romance, fantasy, mystery, scifi)",
 		)
 		.option("-t, --template <name>", "template name (positional alternative)")
+		.option(
+			"--agent",
+			"after scaffolding, run the AI-guided Bible agent interactively",
+		)
 		.action(
-			async (positional: string | undefined, opts: { template?: string }) => {
+			async (
+				positional: string | undefined,
+				opts: { template?: string; agent?: boolean },
+			) => {
 				try {
 					const template = positional ?? opts.template;
-					await bibleInit(template);
+					await bibleInit(template, {
+						...(opts.agent ? { agent: true } : {}),
+					});
 				} catch (err) {
 					reportError(err);
 					process.exit(1);

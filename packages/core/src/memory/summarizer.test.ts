@@ -12,7 +12,9 @@ import type { ProjectConfig } from "../config/project-config.js";
 import type { ProjectConfigData } from "../config/schema.js";
 import { Summarizer } from "./summarizer.js";
 
-function sampleConfigData(overrides: Partial<ProjectConfigData> = {}): ProjectConfigData {
+function sampleConfigData(
+	overrides: Partial<ProjectConfigData> = {},
+): ProjectConfigData {
 	return {
 		name: "test-novel",
 		language: "ko",
@@ -87,7 +89,10 @@ describe("Summarizer", () => {
 		await summarizer.summarize(1, "t", "c", newConfig(sampleConfigData()));
 
 		expect(mocks.generateText).toHaveBeenCalledTimes(1);
-		const call = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+		const call = mocks.generateText.mock.calls[0]?.[0] as Record<
+			string,
+			unknown
+		>;
 		expect(call.model).toBeDefined();
 	});
 
@@ -105,7 +110,10 @@ describe("Summarizer", () => {
 		const summarizer = new Summarizer();
 		await summarizer.summarize(1, "t", "c", newConfig(sampleConfigData()));
 
-		const call = mocks.generateText.mock.calls[0]?.[0] as Record<string, unknown>;
+		const call = mocks.generateText.mock.calls[0]?.[0] as Record<
+			string,
+			unknown
+		>;
 		expect(call.temperature).toBe(0.7);
 		expect(call.maxOutputTokens).toBe(8000);
 	});
@@ -146,7 +154,12 @@ describe("Summarizer", () => {
 		);
 
 		const summarizer = new Summarizer();
-		await summarizer.summarize(1, "t", "c", newConfig(sampleConfigData({ language: "ko" })));
+		await summarizer.summarize(
+			1,
+			"t",
+			"c",
+			newConfig(sampleConfigData({ language: "ko" })),
+		);
 
 		const call = mocks.generateText.mock.calls[0]?.[0] as { system: string };
 		expect(call.system).toContain("ko");
@@ -183,7 +196,10 @@ describe("Summarizer", () => {
 			newConfig(sampleConfigData()),
 		);
 
-		expect(memory.events).toEqual(["도윤이 카페에서 지아를 만남", "우산을 빌려줌"]);
+		expect(memory.events).toEqual([
+			"도윤이 카페에서 지아를 만남",
+			"우산을 빌려줌",
+		]);
 		expect(memory.emotions).toHaveLength(2);
 		expect(memory.emotions[0]?.character).toBe("도윤");
 		expect(memory.foreshadowing[0]?.item).toBe("지아의 우산");
@@ -214,13 +230,26 @@ describe("Summarizer", () => {
 		expect(memory.events).toEqual(["event"]);
 	});
 
-	it("throws when the model output is not valid schema JSON", async () => {
+	it("returns a placeholder memory when the model output is not JSON", async () => {
+		// Regression: previously this threw, which crashed the pipeline. The
+		// Summarizer now degrades gracefully so a flaky model response does
+		// not destroy the chapter just written.
 		mocks.generateText.mockResolvedValue({ text: "not json at all" });
 
 		const summarizer = new Summarizer();
-		await expect(
-			summarizer.summarize(1, "t", "c", newConfig(sampleConfigData())),
-		).rejects.toThrow();
+		const memory = await summarizer.summarize(
+			1,
+			"t",
+			"c",
+			newConfig(sampleConfigData()),
+		);
+
+		expect(memory.events).toEqual([]);
+		expect(memory.emotions).toEqual([]);
+		expect(memory.foreshadowing).toEqual([]);
+		expect(memory.characterState).toEqual({});
+		expect(memory.facts.length).toBeGreaterThan(0);
+		expect(memory.facts[0]).toMatch(/non-JSON/i);
 	});
 
 	it("throws when the model output has an invalid emotion intensity", async () => {
@@ -238,5 +267,21 @@ describe("Summarizer", () => {
 		await expect(
 			summarizer.summarize(1, "t", "c", newConfig(sampleConfigData())),
 		).rejects.toThrow();
+	});
+
+	it("returns a placeholder memory when chapter content is empty", async () => {
+		// Regression: BUG#9 — Summarizer previously crashed when an upstream
+		// pipeline failure (empty ChapterWriter output) reached it.
+		const summarizer = new Summarizer();
+		const memory = await summarizer.summarize(
+			1,
+			"title",
+			"",
+			newConfig(sampleConfigData()),
+		);
+
+		expect(memory.events).toEqual([]);
+		expect(memory.wordCount).toBe(0);
+		expect(memory.facts.length).toBeGreaterThan(0);
 	});
 });

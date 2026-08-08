@@ -207,7 +207,7 @@ describe("config commands", () => {
 				defaultApiKey: "old-secret",
 				defaultChapterWords: 4000,
 				defaultTemperature: 0.5,
-				projects: [{ name: "novel-a", path: "/a" }],
+				projects: [{ name: "novel-a", path: "/a", id: "novel-a-1" }],
 			});
 			await existing.save(home);
 
@@ -222,7 +222,7 @@ describe("config commands", () => {
 			expect(reloaded.defaultApiKey).toBe("old-secret");
 			expect(reloaded.defaultBaseUrl).toBe("https://api.example.com/v4");
 			expect(reloaded.listProjects()).toEqual([
-				{ name: "novel-a", path: "/a" },
+				{ name: "novel-a", path: "/a", id: "novel-a-1" },
 			]);
 		});
 

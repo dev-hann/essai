@@ -31,6 +31,28 @@ function headerFor(chapter: number, format: ExportFormat): string {
 	return `# Chapter ${chapter}\n\n`;
 }
 
+/**
+ * Best-effort markdown → plain text for the txt export format.
+ * Strips ATX heading markers, emphasis, code spans and horizontal rules
+ * while keeping the underlying prose intact. We intentionally avoid a full
+ * markdown parser: chapters are author-edited prose and a light regex pass
+ * matches the formatting the writer pipeline actually emits.
+ */
+function stripMarkdown(input: string): string {
+	return input
+		.replace(/^---\s*$/gm, "")
+		.replace(/^\s{0,3}#{1,6}\s+/gm, "")
+		.replace(/\*\*([^*]+)\*\*/g, "$1")
+		.replace(/\*([^*]+)\*/g, "$1")
+		.replace(/__([^_]+)__/g, "$1")
+		.replace(/_([^_]+)_/g, "$1")
+		.replace(/`([^`]+)`/g, "$1");
+}
+
+function renderChapter(content: string, format: ExportFormat): string {
+	return format === "txt" ? stripMarkdown(content) : content;
+}
+
 export function buildExportContent(
 	files: ChapterSource[],
 	format: ExportFormat,
@@ -44,7 +66,7 @@ export function buildExportContent(
 
 	const blocks = sorted.map((file) => {
 		const header = headerFor(chapterNumberFromName(file.name), format);
-		return `${header}${file.content}`;
+		return `${header}${renderChapter(file.content, format)}`;
 	});
 
 	return blocks.join("\n\n");
