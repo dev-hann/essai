@@ -159,6 +159,7 @@ export class ContinuityAuditor {
 			`- "ok" means no issue found; the message should still explain briefly what you checked.`,
 			`- Do not include the chapter text in your reply.`,
 			`- Keep the message under 200 characters.`,
+			`- Write the message in ${this.config.language}.`,
 		].join("\n");
 
 		const userContext = this.buildUserContext(
