@@ -7,6 +7,8 @@ import type { WorldData, WorldLocation } from "./world-types.js";
  *  - floor mismatches (two characters "벽 하나 사이" but on different floors)
  *  - forbidden props (도어락 building but "열쇠" appears in text)
  *  - timeline arithmetic (H-1 visa "1 year" but actual stay 6 months)
+ *  - language-specific surface rules (Korean register leaks, English
+ *    em-dash overuse, mixed-script punctuation)
  *
  * All checks are pure string parsing — no API calls, deterministic output.
  */
@@ -24,6 +26,12 @@ export interface ValidationFinding {
 export interface StaticValidatorOptions {
 	/** Disable specific rules by id (e.g. "timeline-arithmetic"). */
 	disable?: string[];
+	/**
+	 * Project language code. Drives which language-specific surface rules
+	 * run (Korean register, English em-dash, etc). When omitted, only the
+	 * language-agnostic rules fire.
+	 */
+	language?: string;
 }
 
 const DEFAULT_OPTIONS: StaticValidatorOptions = {};
@@ -41,7 +49,7 @@ export class StaticValidator {
 
 		for (const rule of VALIDATION_RULES) {
 			if (this.opts.disable?.includes(rule.id)) continue;
-			const ruleFindings = rule.run(content, world);
+			const ruleFindings = rule.run(content, world, this.opts.language);
 			for (const finding of ruleFindings) {
 				findings.push({
 					severity: finding.severity,
@@ -65,7 +73,7 @@ interface RuleResult {
 
 interface ValidationRule {
 	id: string;
-	run: (content: string, world: WorldData) => RuleResult[];
+	run: (content: string, world: WorldData, language?: string) => RuleResult[];
 }
 
 const FLOOR_KEYWORDS: Array<{ keyword: string; floor: number }> = [
@@ -105,6 +113,20 @@ const VALIDATION_RULES: ValidationRule[] = [
 	{
 		id: "visa-duration",
 		run: (content) => checkVisaDuration(content),
+	},
+	{
+		id: "korean-register",
+		run: (content, _world, lang) =>
+			lang === "ko" ? checkKoreanRegister(content) : [],
+	},
+	{
+		id: "english-em-dash",
+		run: (content, _world, lang) =>
+			lang === "en" ? checkEnglishEmDash(content) : [],
+	},
+	{
+		id: "mixed-script-punctuation",
+		run: (content) => checkMixedScriptPunctuation(content),
 	},
 ];
 
@@ -234,6 +256,108 @@ function checkVisaDuration(content: string): RuleResult[] {
 
 function escapeRegex(s: string): string {
 	return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Korean register (문어체/구어체) consistency. Narrative prose that
+ * suddenly slips into very formal written endings (-습니다/-(스)ㅂ니다)
+ * inside dialogue or close-POV narration reads unnatural. We scan the
+ * text inside dialogue quotes and flag when both formal and informal
+ * endings appear — picking one register per scene is the norm.
+ */
+const KO_FORMAL_ENDINGS = /(?:습니다|습니까|ㅂ니다|ㅂ니까|십시오)/;
+const KO_INFORMAL_ENDINGS =
+	/(?:반가워|좋아|싫어|가자|하자|뭐야|어떡해|그래|알았어)/;
+
+/** Pull every quoted phrase from a single line (ASCII + full-width). */
+function extractQuoted(line: string): string[] {
+	const out: string[] = [];
+	for (const m of line.matchAll(/"([^"]+)"/g)) {
+		const captured = m[1];
+		if (captured) out.push(captured);
+	}
+	for (const m of line.matchAll(/“([^”]+)”/g)) {
+		const captured = m[1];
+		if (captured) out.push(captured);
+	}
+	return out;
+}
+
+function checkKoreanRegister(content: string): RuleResult[] {
+	const results: RuleResult[] = [];
+	const dialogueLines = content
+		.split("\n")
+		.filter((line) => line.includes('"') || line.includes("“"));
+	if (dialogueLines.length < 2) return results;
+	let sawFormal: { quote: string } | null = null;
+	let sawInformal: { quote: string } | null = null;
+	for (const line of dialogueLines) {
+		for (const quote of extractQuoted(line)) {
+			if (KO_FORMAL_ENDINGS.test(quote) && !sawFormal) {
+				sawFormal = { quote };
+			}
+			if (KO_INFORMAL_ENDINGS.test(quote) && !sawInformal) {
+				sawInformal = { quote };
+			}
+		}
+	}
+	if (sawFormal && sawInformal) {
+		results.push({
+			severity: "warning",
+			message:
+				"Korean register drift: chapter mixes -습니다 (formal) with informal endings (-어/해/죠). Pick one register per scene.",
+			excerpt: `“${sawFormal.quote}”  ↔  “${sawInformal.quote}”`,
+		});
+	}
+	return results;
+}
+
+/**
+ * English em-dash overuse. AI-generated English prose leans heavily on
+ * em-dashes — three or more in a single paragraph is almost always a
+ * tell. We flag paragraphs that cross that threshold.
+ */
+function checkEnglishEmDash(content: string): RuleResult[] {
+	const results: RuleResult[] = [];
+	const paragraphs = content.split(/\n\s*\n/);
+	for (const para of paragraphs) {
+		const count = (para.match(/—/g) ?? []).length;
+		if (count >= 3) {
+			results.push({
+				severity: "warning",
+				message: `Em-dash overuse: ${count} em-dashes in one paragraph (threshold 3). Likely AI tell; rephrase with commas, parens, or split the sentence.`,
+			});
+		}
+	}
+	return results;
+}
+
+/**
+ * Mixed-script punctuation. Korean prose should use Korean-style
+ * quotation marks (“ ”, ‘ ’) and full-width stops when they appear;
+ * English should use straight quotes. The most common slip is a Korean
+ * line using ASCII straight quotes ("…") — we flag those.
+ */
+const KO_ASCII_DOUBLE_QUOTE = /["][^"\n]{1,80}["]/;
+
+function checkMixedScriptPunctuation(content: string): RuleResult[] {
+	const results: RuleResult[] = [];
+	// Only check paragraphs that contain Hangul — pure-ASCII English
+	// paragraphs are allowed straight quotes.
+	const hangulParagraphs = content
+		.split(/\n\s*\n/)
+		.filter((p) => /[\uAC00-\uD7A3]/.test(p));
+	for (const para of hangulParagraphs) {
+		const matches = para.match(new RegExp(KO_ASCII_DOUBLE_QUOTE, "g"));
+		if (matches && matches.length >= 1) {
+			results.push({
+				severity: "info",
+				message: `Hangul paragraph uses ASCII straight quotes ("…"). Korean convention prefers “…” (full-width) inside Korean text.`,
+				excerpt: matches[0],
+			});
+		}
+	}
+	return results;
 }
 
 export { FLOOR_KEYWORDS, ROOM_PATTERN };

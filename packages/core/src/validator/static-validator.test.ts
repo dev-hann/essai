@@ -129,4 +129,76 @@ describe("StaticValidator", () => {
 			expect(findings).toEqual([]);
 		});
 	});
+
+	describe("korean-register", () => {
+		it("flags a chapter that mixes -습니다 and informal endings", () => {
+			const v = new StaticValidator({ language: "ko" });
+			const content =
+				'"안녕하세요, 만나서 반갑습니다." 그녀가 인사했다.\n\n"응, 반가워." 그가 대답했다.';
+			const findings = v.validate(content, world({}));
+			expect(findings.some((f) => f.rule === "korean-register")).toBe(true);
+		});
+
+		it("passes when all dialogue uses one register", () => {
+			const v = new StaticValidator({ language: "ko" });
+			const content =
+				'"안녕하세요, 만나서 반갑습니다." 그녀가 인사했다.\n\n"네, 반갑습니다." 그가 대답했다.';
+			const findings = v.validate(content, world({}));
+			expect(findings.filter((f) => f.rule === "korean-register")).toEqual([]);
+		});
+
+		it("does not run when language is not Korean", () => {
+			const v = new StaticValidator({ language: "en" });
+			const content = '"Hello, nice to meet you." she said.';
+			const findings = v.validate(content, world({}));
+			expect(findings.filter((f) => f.rule === "korean-register")).toEqual([]);
+		});
+	});
+
+	describe("english-em-dash", () => {
+		it("flags paragraphs with three or more em-dashes", () => {
+			const v = new StaticValidator({ language: "en" });
+			const content =
+				"She walked in — late, again — and dropped her bag — keys scattering.";
+			const findings = v.validate(content, world({}));
+			expect(findings.some((f) => f.rule === "english-em-dash")).toBe(true);
+		});
+
+		it("passes when a paragraph uses em-dashes sparingly", () => {
+			const v = new StaticValidator({ language: "en" });
+			const content =
+				"She walked in — late, again — and dropped her bag on the floor.";
+			const findings = v.validate(content, world({}));
+			expect(findings.filter((f) => f.rule === "english-em-dash")).toEqual([]);
+		});
+	});
+
+	describe("mixed-script-punctuation", () => {
+		it("flags Hangul paragraph that uses ASCII straight quotes", () => {
+			const v = new StaticValidator();
+			const content = '"안녕하세요." 그녀가 말했다.';
+			const findings = v.validate(content, world({}));
+			expect(findings.some((f) => f.rule === "mixed-script-punctuation")).toBe(
+				true,
+			);
+		});
+
+		it("passes Hangul paragraph with full-width quotes", () => {
+			const v = new StaticValidator();
+			const content = "“안녕하세요.” 그녀가 말했다.";
+			const findings = v.validate(content, world({}));
+			expect(
+				findings.filter((f) => f.rule === "mixed-script-punctuation"),
+			).toEqual([]);
+		});
+
+		it("ignores pure-ASCII English paragraphs", () => {
+			const v = new StaticValidator();
+			const content = '"Hello there," she said.';
+			const findings = v.validate(content, world({}));
+			expect(
+				findings.filter((f) => f.rule === "mixed-script-punctuation"),
+			).toEqual([]);
+		});
+	});
 });

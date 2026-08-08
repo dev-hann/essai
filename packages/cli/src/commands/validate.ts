@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import {
 	loadWorld,
+	ProjectConfig,
 	StaticValidator,
 	type ValidationSeverity,
 } from "@essai/core";
@@ -45,7 +46,13 @@ export async function validateCommand(
 	}
 
 	const world = await loadWorld(path.join(cwd, "bible"));
+	// Load project config purely to pick up the language code so language-
+	// specific surface rules (Korean register, English em-dash) fire
+	// appropriately. ProjectConfig.load returns defaults when essai.json
+	// is missing, so this never throws for the validator path.
+	const config = await ProjectConfig.load(cwd).catch(() => null);
 	const validator = new StaticValidator({
+		...(config ? { language: config.language } : {}),
 		...(opts.disable && opts.disable.length > 0
 			? { disable: opts.disable }
 			: {}),
