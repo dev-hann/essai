@@ -59,16 +59,26 @@ bible/ 폴더 구조:
    → my-novel/ 폴더 생성, essai.json + 빈 bible/ 생성
 
 2. 모델 설정
-   $ essai config set base-url https://api.z.ai/api/coding/paas/v4
-   $ essai config set api-key $GLM_API_KEY
-   $ essai config set model glm-5.1
+   $ essai config set -g defaultBaseUrl https://api.z.ai/api/coding/paas/v4
+   $ essai config set -g defaultApiKey $GLM_API_KEY
+   $ essai config set -g defaultModel glm-5.1
+   $ essai config set -g defaultLanguage ko
+   → ~/.essai/config.json에 저장, 이후 `essai init` 시 신규 essai.json에 상속
+
+   또는 프로젝트 로컬에서:
+   $ essai config set llm.baseUrl https://api.z.ai/api/coding/paas/v4
+   $ essai config set llm.apiKey $GLM_API_KEY
+   $ essai config set llm.model glm-5.1
    $ essai config set language ko
    → essai.json에 저장
 
 3. Bible 작성 (AI 에이전트 대화형)
    $ essai bible init
    → 템플릿 선택: romance / fantasy / mystery / scifi / blank
-   → AI 에이전트가 작가와 대화하면서 bible/ 폴더를 완성
+   → AI 에이전트가 작가와 대화하면서 bible/ 폴더를 완성 (--agent 플래그)
+
+   $ essai bible init romance --agent
+   → 템플릿 복사 후 AI 에이전트 대화형 인터페이스 시작
 
    대화 예시:
    AI: "이야기의 중심이 되는 캐릭터는 누구인가요?"
@@ -316,46 +326,60 @@ my-novel/
 
 ## 7. CLI 명령어 전체
 
+> 현재 구현된 명령. 설계 문서와 실제 CLI 동기화용.
+
 ### 초기화 & 설정
 ```
-essai init [name]                    프로젝트 생성
-essai config set <key> <value>       설정 변경
-essai config get <key>               설정 확인
-essai config show                    전체 설정 출력
+essai init [name]                       프로젝트 생성 (빈 bible/ — `bible init`으로 채움)
+essai config set <key> <value>          설정 변경 (-g: 글로벌 default* 키)
+essai config get <key>                  설정 확인
+essai config show                       전체 essai.json 출력
 ```
+
+글로벌 키: `defaultBaseUrl`, `defaultApiKey`, `defaultModel`, `defaultLanguage`, `defaultChapterWords`, `defaultTemperature`
+프로젝트 키: `llm.baseUrl`, `llm.apiKey`, `llm.model`, `llm.temperature`, `llm.maxTokens`, `llm.thinkingEnabled`, `language`, `chapterWords`
 
 ### Bible
 ```
-essai bible init [--template romance]  AI 에이전트 대화형으로 Bible 생성
-essai bible show                       현재 설정 출력 (트리 구조)
-essai bible edit                       에디터에서 bible/ 열기
-essai bible add character              대화형으로 캐릭터 추가
-essai bible add chapter <n>            N화 챕터 계획 추가
-essai bible add relationship           인물 관계 추가
-essai bible validate                   설정 누락/충돌 검사
+essai bible init [template] [--agent]   bible/ 스캐폴드 (blank/romance/fantasy/mystery/scifi)
+                                        --agent: AI 에이전트 대화형 Bible 생성
+essai bible show                        현재 bible/ 파일 목록 (용량 포함)
+essai bible edit [file]                 $EDITOR에서 bible/ (또는 특정 파일) 열기
+essai bible add <section>               대화형으로 항목 추가 (예: bible add characters)
+essai bible validate                    표준 섹션 누락/빈 파일 검사
 ```
 
 ### 챕터 작성
 ```
-essai write <n>                      N화 생성
-essai write next                     다음 화 생성
-essai write <n> --rewrite            N화 재생성
-essai write <n> --instruction "..."  추가 지시사항
+essai write <n>                         N화 생성 (파이프라인: write → review → fix → memory)
+essai write next                        다음 화 생성
+essai write <n> --raw                   파이프라인 건너뛰고 write만
+essai write <n> --no-fix                review는 수행하되 자동 수정 생략
+essai write <n> -i "..."                추가 지시사항
+essai rewrite <n>                       N화 재생성 (자동 .bak 백업, 실패 시 복원)
+essai rewrite <n> -i "..."              지시문과 함께 재생성
+```
+
+### 챕터 검토/검증
+```
+essai read <n>                          N화 출력
+essai review <n> [-r <rules.md>]        품질 피드백 (커스텀 룰 파일 옵션)
+essai validate <n> [--disable <rule>]   정적 일관성 검사 (bible/world.md 기반)
+                                        rules: floor-consistency, forbidden-props, visa-duration
 ```
 
 ### 챕터 관리
 ```
-essai read <n>                       N화 읽기
-essai edit <n>                       에디터에서 N화 열기
-essai list                           챕터 목록 + 글자수
-essai status                         진행 상황
-essai context <n>                    N화 생성 시 참조 맥락 미리보기
+essai list                              챕터 목록 + 글자수
+essai status                            진행 상황 (감정 단계, 미회수 복선)
+essai context <n>                       N화 생성 시 주입될 맥락 미리보기
+essai export [-f md|txt]                전체 내보내기 (txt는 마크다운 strip)
 ```
 
-### 내보내기
+### UI
 ```
-essai export [--format md|txt]       전체 내보내기
-essai export <n> [--format md|txt]   특정 화만 내보내기
+essai serve [-p <port>] [--start]       웹 UI (Next.js dev, --start: prod 서버)
+essai tui                               터미널 UI (Ink)
 ```
 
 ---
