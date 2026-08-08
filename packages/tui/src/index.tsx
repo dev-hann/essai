@@ -133,6 +133,11 @@ function App({ projects }: AppProps): ReactNode {
 									String(n),
 								]);
 							});
+						} else if (action === "bible-agent") {
+							runCommand(screen.project, "essai bible agent", [
+								"bible",
+								"agent",
+							]);
 						}
 					}}
 					onBack={() => setScreen({ kind: "projects" })}

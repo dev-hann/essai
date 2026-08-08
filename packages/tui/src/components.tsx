@@ -257,7 +257,12 @@ export function BibleSectionView({
 interface ProjectMenuProps {
 	project: { name: string; path: string };
 	onSelect: (
-		action: "chapters" | "bible" | "write-next" | "audit-latest",
+		action:
+			| "chapters"
+			| "bible"
+			| "write-next"
+			| "audit-latest"
+			| "bible-agent",
 	) => void;
 	onBack: () => void;
 }
@@ -268,7 +273,7 @@ export function ProjectMenu({
 	onBack,
 }: ProjectMenuProps): ReactNode {
 	const items: SelectInputProps<
-		"chapters" | "bible" | "write-next" | "audit-latest"
+		"chapters" | "bible" | "write-next" | "audit-latest" | "bible-agent"
 	>["items"] = [
 		{ key: "chapters", label: "📖 Chapters", value: "chapters" },
 		{ key: "bible", label: "📓 Bible", value: "bible" },
@@ -277,6 +282,11 @@ export function ProjectMenu({
 			key: "audit-latest",
 			label: "🔍 Audit latest chapter",
 			value: "audit-latest",
+		},
+		{
+			key: "bible-agent",
+			label: "🤖 Bible agent chat",
+			value: "bible-agent",
 		},
 	];
 	return (

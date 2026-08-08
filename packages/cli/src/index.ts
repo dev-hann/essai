@@ -5,6 +5,7 @@ import { Command } from "commander";
 import { auditCommand } from "./commands/audit.js";
 import {
 	bibleAdd,
+	bibleAgent,
 	bibleEdit,
 	bibleInit,
 	bibleShow,
@@ -439,6 +440,20 @@ export function buildProgram(): Command {
 		.action(async (section: string) => {
 			try {
 				await bibleAdd(section);
+			} catch (err) {
+				reportError(err);
+				process.exit(1);
+			}
+		});
+
+	bible
+		.command("agent")
+		.description(
+			"Run the AI-guided Bible agent against the current bible/ folder (no scaffolding)",
+		)
+		.action(async () => {
+			try {
+				await bibleAgent();
 			} catch (err) {
 				reportError(err);
 				process.exit(1);

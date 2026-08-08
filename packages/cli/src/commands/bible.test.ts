@@ -13,6 +13,7 @@ vi.mock("@essai/core", async (importOriginal) => {
 
 import {
 	bibleAdd,
+	bibleAgent,
 	bibleEdit,
 	bibleInit,
 	bibleShow,
@@ -458,5 +459,46 @@ describe("bible add", () => {
 		await bibleAdd("style", { cwd: tmp, prompt, stdout: out });
 
 		expect(out.output).toMatch(/added|appended/i);
+	});
+});
+
+describe("bible agent", () => {
+	let tmp: string;
+
+	beforeEach(async () => {
+		tmp = await fs.mkdtemp(path.join(os.tmpdir(), "essai-ba-agent-"));
+	});
+
+	afterEach(async () => {
+		await fs.rm(tmp, { recursive: true, force: true });
+	});
+
+	it("warns and returns when essai.json is missing", async () => {
+		const out = newCapture();
+		await bibleAgent({ cwd: tmp, stdout: out });
+		expect(out.output).toMatch(/No essai.json|essai init/);
+	});
+
+	it("warns and returns when LLM is not configured", async () => {
+		await fs.writeFile(
+			path.join(tmp, "essai.json"),
+			JSON.stringify({
+				name: "x",
+				language: "ko",
+				chapterWords: 1000,
+				llm: {
+					baseUrl: "",
+					apiKey: "",
+					model: "",
+					temperature: 0.7,
+					maxTokens: 1000,
+					thinkingEnabled: false,
+				},
+			}),
+			"utf-8",
+		);
+		const out = newCapture();
+		await bibleAgent({ cwd: tmp, stdout: out });
+		expect(out.output).toMatch(/LLM not configured|essai config set/);
 	});
 });

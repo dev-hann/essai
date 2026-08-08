@@ -256,7 +256,15 @@ async function runBibleAgent(
 	);
 	const readline = await import("node:readline/promises");
 
-	const config = await ProjectConfig.load(cwd);
+	let config: Awaited<ReturnType<typeof ProjectConfig.load>>;
+	try {
+		config = await ProjectConfig.load(cwd);
+	} catch {
+		stdout.write(
+			"\nNo essai.json found. Run `essai init` in this directory first.\n",
+		);
+		return;
+	}
 	if (!config.llm.baseUrl || !config.llm.apiKey || !config.llm.model) {
 		stdout.write("\nLLM not configured. Run `essai config set` first.\n");
 		return;
@@ -403,6 +411,17 @@ export async function bibleEdit(
 			: `${path.join(bibleDir, file.endsWith(".md") ? file : `${file}.md`)}`;
 
 	await spawn(editor, [target]);
+}
+
+/**
+ * Run the AI-guided Bible agent without re-scaffolding the bible/ folder.
+ * Useful when the author already has a partial bible (from a template or a
+ * previous session) and just wants to keep chatting to fill it out.
+ */
+export async function bibleAgent(opts: BibleOpts = {}): Promise<void> {
+	const cwd = opts.cwd ?? process.cwd();
+	const stdout = resolveStdout(opts);
+	await runBibleAgent(cwd, stdout);
 }
 
 async function defaultPrompt(question: string): Promise<string> {

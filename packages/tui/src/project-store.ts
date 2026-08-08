@@ -140,5 +140,6 @@ export async function latestChapterNumber(
 ): Promise<number | null> {
 	const chapters = await listChapters(projectDir);
 	if (chapters.length === 0) return null;
-	return chapters[chapters.length - 1]!.number;
+	const last = chapters[chapters.length - 1];
+	return last ? last.number : null;
 }
