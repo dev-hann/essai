@@ -22,6 +22,7 @@ import { reviewChapterCommand } from "./commands/review.js";
 import { rewriteChapterCommand } from "./commands/rewrite.js";
 import { serveCommand } from "./commands/serve.js";
 import { showStatus } from "./commands/status.js";
+import { tuiCommand } from "./commands/tui.js";
 import { validateCommand } from "./commands/validate.js";
 import { writeChapterCommand } from "./commands/write.js";
 
@@ -268,6 +269,18 @@ export function buildProgram(): Command {
 					...(opts.port !== undefined ? { port: opts.port } : {}),
 					...(opts.start ? { mode: "start" as const } : {}),
 				});
+			} catch (err) {
+				reportError(err);
+				process.exit(1);
+			}
+		});
+
+	program
+		.command("tui")
+		.description("Launch the Ink-based terminal UI")
+		.action(async () => {
+			try {
+				await tuiCommand();
 			} catch (err) {
 				reportError(err);
 				process.exit(1);

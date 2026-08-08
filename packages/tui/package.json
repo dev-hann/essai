@@ -1,0 +1,26 @@
+{
+	"name": "@essai/tui",
+	"version": "0.0.0",
+	"type": "module",
+	"private": true,
+	"description": "Terminal UI for essai (Ink + React).",
+	"bin": {
+		"essai-tui": "./dist/index.js"
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"typecheck": "tsc --noEmit -p tsconfig.json",
+		"test": "vitest run --passWithNoTests"
+	},
+	"dependencies": {
+		"@essai/core": "workspace:*",
+		"ink": "^7.1.1",
+		"react": "^19.0.0"
+	},
+	"devDependencies": {
+		"@types/node": "^26.1.1",
+		"@types/react": "^19.0.7",
+		"typescript": "^5.8.2",
+		"vitest": "^4.1.10"
+	}
+}
