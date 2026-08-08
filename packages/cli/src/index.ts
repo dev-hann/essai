@@ -19,6 +19,7 @@ import {
 	showConfig,
 } from "./commands/config.js";
 import { contextCommand } from "./commands/context.js";
+import { diffCommand } from "./commands/diff.js";
 import { doctorCommand } from "./commands/doctor.js";
 import { exportCommand } from "./commands/export.js";
 import { createProject } from "./commands/init.js";
@@ -443,6 +444,26 @@ export function buildProgram(): Command {
 				await doctorCommand({
 					...(opts.failFast ? { failFast: true } : {}),
 				});
+			} catch (err) {
+				reportError(err);
+				process.exit(1);
+			}
+		});
+
+	program
+		.command("diff <chapter>")
+		.description(
+			"Print a unified diff between the chapter and its .bak snapshot",
+		)
+		.action(async (chapter: string) => {
+			try {
+				const n = parseChapterArg(chapter);
+				if (n === "next") {
+					throw new Error(
+						'"diff next" is not supported. Use a chapter number.',
+					);
+				}
+				await diffCommand(n);
 			} catch (err) {
 				reportError(err);
 				process.exit(1);
