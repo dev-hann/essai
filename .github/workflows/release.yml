@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+# Only one release job at a time. CI (build/test) on the same commit
+# runs in the `CI` workflow and must pass before this publishes; we
+# gate on it via the `verify` job below.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Re-run the same gate as CI so we never publish a broken main.
+  verify:
+    name: typecheck · lint · test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      ok: ${{ steps.set.outputs.ok }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm -r typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - id: set
+        run: echo "ok=1" >> "$GITHUB_OUTPUT"
+
+  release:
+    name: changeset version + publish
+    needs: verify
+    if: needs.verify.outputs.ok == '1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # changesets/action pushes a "Version Packages" commit back to
+          # main, so it needs write access to the repo.
+          persist-credentials: true
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          # publishable packages need a registry auth token. The token is
+          # scoped to "publish" — set NPM_TOKEN in repo secrets to enable.
+          # Without it, this step will fail at `npm publish` time.
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Create Release Pull Request or Publish
+        id: changesets
+        uses: changesets/action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # `publish` runs after `version`. If there are pending changesets
+          # the action opens a "Version Packages" PR instead and skips
+          # publish — that PR, once merged, triggers this workflow again
+          # and the publish step then runs against the version-bumped tree.
+          version: pnpm version
+          publish: pnpm release
+          commit: "chore(release): version packages"
+          title: "chore(release): version packages"
