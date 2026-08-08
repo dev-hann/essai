@@ -2,8 +2,11 @@
 	"name": "@essai/tui",
 	"version": "0.0.0",
 	"type": "module",
-	"private": true,
-	"description": "Terminal UI for essai (Ink + React).",
+	"description": "Terminal UI for the essai writing framework (Ink + React).",
+	"license": "MIT",
+	"publishConfig": {
+		"access": "public"
+	},
 	"bin": {
 		"essai-tui": "./dist/index.js"
 	},
