@@ -80,8 +80,7 @@ describe("buildExportContent", () => {
 			[
 				{
 					name: "001.md",
-					content:
-						"**bold** and *italic* and `code` and --- separator",
+					content: "**bold** and *italic* and `code` and --- separator",
 				},
 			],
 			"txt",

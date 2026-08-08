@@ -72,25 +72,35 @@ export function DiffView({ before, after }: DiffViewProps) {
 					단어 단위 diff ({wordParts.length} segments)
 				</summary>
 				<pre className="diff-pane mt-2">
-					{wordParts.map((p, i) => (
-						<span
-							key={i}
-							style={{
-								backgroundColor: p.added
-									? "rgba(77,138,106,0.18)"
-									: p.removed
-										? "rgba(160,90,90,0.18)"
-										: "transparent",
-								color: p.added
-									? "var(--color-success)"
-									: p.removed
-										? "var(--color-danger)"
-										: "inherit",
-							}}
-						>
-							{p.value}
-						</span>
-					))}
+					{(() => {
+						// diff segments are positional: identical strings (e.g.
+						// whitespace runs) repeat, so a content-based key would
+						// collide. Use a monotonic counter to give each span a
+						// stable, unique key without an array index directly.
+						let n = 0;
+						return wordParts.map((p) => {
+							n += 1;
+							return (
+								<span
+									key={`seg-${n}-${p.added ? "a" : p.removed ? "r" : "k"}`}
+									style={{
+										backgroundColor: p.added
+											? "rgba(77,138,106,0.18)"
+											: p.removed
+												? "rgba(160,90,90,0.18)"
+												: "transparent",
+										color: p.added
+											? "var(--color-success)"
+											: p.removed
+												? "var(--color-danger)"
+												: "inherit",
+									}}
+								>
+									{p.value}
+								</span>
+							);
+						});
+					})()}
 				</pre>
 			</details>
 			<style>{`

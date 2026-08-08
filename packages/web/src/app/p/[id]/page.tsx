@@ -174,8 +174,11 @@ export default async function DashboardPage({ params }: PageProps) {
 						</div>
 					) : (
 						<ul className="space-y-1.5 text-[12px]">
-							{data.openForeshadowing.slice(0, 12).map((f, i) => (
-								<li key={`${f.chapter}-${i}`} className="flex gap-2">
+							{data.openForeshadowing.slice(0, 12).map((f) => (
+								<li
+									key={`${f.chapter}-${f.item.slice(0, 24)}`}
+									className="flex gap-2"
+								>
 									<span className="text-[var(--color-text-mute)]">
 										{f.chapter}화
 									</span>

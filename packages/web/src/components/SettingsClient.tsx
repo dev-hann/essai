@@ -236,8 +236,12 @@ function Field({
 	hint?: string;
 	children: React.ReactNode;
 }) {
+	// Wrap the row in a <div> instead of <label>. The original <label> had
+	// no associated control (label htmlFor) which trips a11y/noLabelWithoutControl.
+	// Children render their own labelled inputs inside this row, so the
+	// outer wrapper only needs to provide the grid layout.
 	return (
-		<label className="grid grid-cols-[140px_1fr] gap-3 items-center">
+		<div className="grid grid-cols-[140px_1fr] gap-3 items-center">
 			<div>
 				<div className="text-[13px] text-[var(--color-text-dim)]">{label}</div>
 				{hint && (
@@ -247,6 +251,6 @@ function Field({
 				)}
 			</div>
 			<div>{children}</div>
-		</label>
+		</div>
 	);
 }

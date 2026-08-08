@@ -264,8 +264,8 @@ export function ChapterDetailClient({
 											AI 감지 표현 ({review.aiTells.length})
 										</summary>
 										<ul className="mt-1 list-disc pl-5">
-											{review.aiTells.map((t, i) => (
-												<li key={i}>{t}</li>
+											{review.aiTells.map((t) => (
+												<li key={t}>{t}</li>
 											))}
 										</ul>
 									</details>
@@ -276,8 +276,8 @@ export function ChapterDetailClient({
 											발견된 이슈 ({review.issues.length})
 										</summary>
 										<ul className="mt-1 list-disc pl-5">
-											{review.issues.map((t, i) => (
-												<li key={i}>{t}</li>
+											{review.issues.map((t) => (
+												<li key={t}>{t}</li>
 											))}
 										</ul>
 									</details>

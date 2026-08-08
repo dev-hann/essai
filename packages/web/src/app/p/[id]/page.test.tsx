@@ -116,8 +116,12 @@ describe("DashboardPage (project-scoped)", () => {
 		const header = screen.getByText("감정 곡선");
 		const card = header.parentElement?.parentElement;
 		expect(card).not.toBeNull();
+		expect(card).not.toBeNull();
+		// Avoid non-null assertion (biome lint/style/noNonNullAssertion).
+		// If card is null the line above already fails; here we just narrow.
+		if (!card) throw new Error("card not rendered");
 		expect(
-			within(card!).getByText("감정 단계 정보가 없습니다."),
+			within(card).getByText("감정 단계 정보가 없습니다."),
 		).toBeInTheDocument();
 	});
 

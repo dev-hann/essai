@@ -81,9 +81,7 @@ function sampleBible(): BibleData {
 		characters: {},
 		relationships: [],
 		emotion: [],
-		chapters: new Map([
-			[1, { number: 1, title: "첫 만남", scenes: ["장면"] }],
-		]),
+		chapters: new Map([[1, { number: 1, title: "첫 만남", scenes: ["장면"] }]]),
 		style: [],
 		tone: [],
 		constraints: [],
@@ -172,7 +170,11 @@ describe("runWritePipeline", () => {
 		);
 
 		await fs.mkdir(path.join(tmpDir, "chapters"), { recursive: true });
-		await fs.writeFile(path.join(tmpDir, "chapters", "001.md"), original, "utf-8");
+		await fs.writeFile(
+			path.join(tmpDir, "chapters", "001.md"),
+			original,
+			"utf-8",
+		);
 
 		const result = await runWritePipeline(
 			1,
@@ -192,9 +194,7 @@ describe("runWritePipeline", () => {
 		expect(onDisk).toBe(original);
 		// A failed fix step must be visible in the step log.
 		expect(
-			result.steps.some(
-				(s) => s.stage === "fix" && s.status === "failed",
-			),
+			result.steps.some((s) => s.stage === "fix" && s.status === "failed"),
 		).toBe(true);
 	});
 
@@ -211,7 +211,11 @@ describe("runWritePipeline", () => {
 		);
 
 		await fs.mkdir(path.join(tmpDir, "chapters"), { recursive: true });
-		await fs.writeFile(path.join(tmpDir, "chapters", "001.md"), original, "utf-8");
+		await fs.writeFile(
+			path.join(tmpDir, "chapters", "001.md"),
+			original,
+			"utf-8",
+		);
 
 		const result = await runWritePipeline(
 			1,
@@ -247,9 +251,7 @@ describe("runWritePipeline", () => {
 		expect(mocks.writeChapter).toHaveBeenCalledTimes(1);
 		expect(result.content).toBe("원문");
 		expect(
-			result.steps.some(
-				(s) => s.stage === "fix" && s.status === "skipped",
-			),
+			result.steps.some((s) => s.stage === "fix" && s.status === "skipped"),
 		).toBe(true);
 	});
 

@@ -208,4 +208,49 @@ describe("rewrite command", () => {
 		await expect(rewriteChapterCommand(99, { cwd: tmp })).rejects.toThrow();
 		expect(editorMocks.rewrite).not.toHaveBeenCalled();
 	});
+
+	it("creates a .bak of the existing chapter before rewriting", async () => {
+		// Regression: standalone rewrite used to overwrite the file with no
+		// recovery path. Now it copies the original to .bak first.
+		const chaptersDir = path.join(tmp, "chapters");
+		await fs.mkdir(chaptersDir, { recursive: true });
+		const original = "원본 콘텐츠";
+		await fs.writeFile(path.join(chaptersDir, "001.md"), original, "utf-8");
+
+		editorMocks.rewrite.mockResolvedValue({
+			content: "새 콘텐츠",
+			wordCount: 5,
+		});
+		summarizerMocks.summarize.mockResolvedValue(memoryJson(1));
+
+		await rewriteChapterCommand(1, { cwd: tmp });
+
+		const backup = await fs.readFile(
+			path.join(chaptersDir, "001.md.bak"),
+			"utf-8",
+		);
+		expect(backup).toBe(original);
+	});
+
+	it("restores the original chapter when rewrite throws", async () => {
+		// Regression: when ChapterWriter's empty-content guard fires during
+		// a rewrite, the command must restore the .bak so the author does
+		// not lose the prior chapter.
+		const chaptersDir = path.join(tmp, "chapters");
+		await fs.mkdir(chaptersDir, { recursive: true });
+		const original = "원본 콘텐츠";
+		await fs.writeFile(path.join(chaptersDir, "001.md"), original, "utf-8");
+
+		editorMocks.rewrite.mockRejectedValue(
+			new Error("ChapterWriter produced empty content"),
+		);
+		summarizerMocks.summarize.mockResolvedValue(memoryJson(1));
+
+		await expect(rewriteChapterCommand(1, { cwd: tmp })).rejects.toThrow(
+			/empty content/i,
+		);
+
+		const onDisk = await fs.readFile(path.join(chaptersDir, "001.md"), "utf-8");
+		expect(onDisk).toBe(original);
+	});
 });

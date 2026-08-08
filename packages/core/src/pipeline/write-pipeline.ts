@@ -97,6 +97,11 @@ export async function runWritePipeline(
 	// --- Step 3: Fix (if needed) ---
 	let finalContent = writeResult.content;
 	let finalWordCount = writeResult.wordCount;
+	// Tracks whether the fix step created a .bak and whether it was
+	// ultimately needed. We delete the backup only when fix succeeded
+	// cleanly; on failure we keep it for manual recovery.
+	let createdBackup: string | null = null;
+	let keepBackup = false;
 
 	if (review.needsFix && !noFix) {
 		const fixInstruction = buildFixInstruction(review);
@@ -115,6 +120,7 @@ export async function runWritePipeline(
 		const backupFile = `${chapterFile}.bak`;
 		try {
 			await fs.copyFile(chapterFile, backupFile);
+			createdBackup = backupFile;
 		} catch {
 			// ignore backup failure
 		}
@@ -138,6 +144,7 @@ export async function runWritePipeline(
 					message: `Fix produced ${fixResult.wordCount} chars (min ${minLen}); restoring from backup`,
 				});
 				await restoreBackup(chapterFile, backupFile);
+				keepBackup = true;
 				finalContent = writeResult.content;
 				finalWordCount = writeResult.wordCount;
 			} else {
@@ -151,6 +158,7 @@ export async function runWritePipeline(
 				message: `Fix step failed (${err instanceof Error ? err.message : String(err)}); restoring from backup`,
 			});
 			await restoreBackup(chapterFile, backupFile);
+			keepBackup = true;
 			finalContent = writeResult.content;
 			finalWordCount = writeResult.wordCount;
 		}
@@ -174,6 +182,13 @@ export async function runWritePipeline(
 		status: "done",
 		message: "Memory updated",
 	});
+
+	// Successful run: drop the .bak so chapters/ stays clean. We keep it
+	// when restoreBackup ran (keepBackup === true) so the author can still
+	// inspect the pre-fix version manually.
+	if (createdBackup && !keepBackup) {
+		await cleanupBackup(createdBackup);
+	}
 
 	return {
 		chapter: chapterNumber,
@@ -212,6 +227,20 @@ async function restoreBackup(
 	} catch (err) {
 		// If even the backup read fails, leave the existing file intact and
 		// surface the error upstream via the log.
+		if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+	}
+}
+
+/**
+ * Remove the .bak file once the pipeline has finished successfully. The
+ * backup is only useful as a rollback target inside the fix step; leaving
+ * it on disk after a green run created the "orphan .bak" UX problem where
+ * chapters/001.md.bak lingered indefinitely.
+ */
+async function cleanupBackup(backupFile: string): Promise<void> {
+	try {
+		await fs.unlink(backupFile);
+	} catch (err) {
 		if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
 	}
 }
