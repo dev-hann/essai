@@ -23,10 +23,7 @@ export async function POST(req: Request, { params }: RouteContext) {
 	const { id, n } = await params;
 	const number = Number.parseInt(n, 10);
 	if (!Number.isFinite(number) || number < 1) {
-		return NextResponse.json(
-			{ error: "잘못된 챕터 번호" },
-			{ status: 400 },
-		);
+		return NextResponse.json({ error: "잘못된 챕터 번호" }, { status: 400 });
 	}
 
 	let body: ReviewBody = {};

@@ -1,10 +1,10 @@
 import { GlobalConfig } from "@essai/core";
 import { NextResponse } from "next/server";
-import { loadProjectStats } from "@/lib/projectStats.js";
 import {
 	ProjectNotFoundError,
 	resolveProjectDir,
 } from "@/lib/projectResolver.js";
+import { loadProjectStats } from "@/lib/projectStats.js";
 
 export const dynamic = "force-dynamic";
 

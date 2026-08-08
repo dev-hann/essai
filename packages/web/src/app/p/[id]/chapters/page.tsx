@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { loadBible } from "@essai/core";
+import Link from "next/link";
 import { Card } from "@/components/ui.js";
 import { listChapterFiles } from "@/lib/chapters.js";
 import { resolveProjectDir } from "@/lib/projectResolver.js";
@@ -23,10 +23,7 @@ export default async function ChaptersListPage({ params }: PageProps) {
 		const num = Number.parseInt(name.replace(/\D/g, ""), 10);
 		if (!Number.isFinite(num)) continue;
 		try {
-			const raw = await fs.readFile(
-				path.join(cwd, "chapters", name),
-				"utf-8",
-			);
+			const raw = await fs.readFile(path.join(cwd, "chapters", name), "utf-8");
 			writtenMap.set(num, raw.length);
 		} catch {
 			// skip
@@ -73,10 +70,7 @@ export default async function ChaptersListPage({ params }: PageProps) {
 											</span>
 											<div className="min-w-0">
 												<div className="text-[13px] truncate">
-													{n}화
-													{plan?.title
-														? `: ${plan.title}`
-														: ""}
+													{n}화{plan?.title ? `: ${plan.title}` : ""}
 												</div>
 												{!written && plan && (
 													<div className="text-[11px] text-[var(--color-text-mute)]">

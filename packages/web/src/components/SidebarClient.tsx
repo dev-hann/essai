@@ -3,9 +3,9 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
-	SidebarContent,
 	type ChapterStatus,
 	type ProjectOption,
+	SidebarContent,
 } from "@/components/Sidebar.js";
 
 interface ChaptersApiResponse {
@@ -41,9 +41,7 @@ export function Sidebar() {
 				if (!res.ok) return;
 				const data = (await res.json()) as ProjectsApiResponse;
 				if (cancelled) return;
-				setProjects(
-					data.projects.map((p) => ({ id: p.id, name: p.name })),
-				);
+				setProjects(data.projects.map((p) => ({ id: p.id, name: p.name })));
 			})
 			.catch(() => {
 				// sidebar is non-critical
@@ -80,7 +78,7 @@ export function Sidebar() {
 
 	useEffect(() => {
 		void refresh();
-	}, [refresh, pathname]);
+	}, [refresh]);
 
 	useEffect(() => {
 		const onFocus = () => void refresh();
@@ -94,8 +92,7 @@ export function Sidebar() {
 			router.refresh();
 		};
 		window.addEventListener("essai:refresh-sidebar", handler);
-		return () =>
-			window.removeEventListener("essai:refresh-sidebar", handler);
+		return () => window.removeEventListener("essai:refresh-sidebar", handler);
 	}, [refresh, router]);
 
 	if (!projectId) {

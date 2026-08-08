@@ -1,9 +1,9 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import type { ProjectConfig } from "@essai/core";
+import type { LanguageModel } from "ai";
 import { generateText, tool } from "ai";
 import { z } from "zod";
-import type { LanguageModel } from "ai";
-import type { ProjectConfig } from "@essai/core";
 
 export interface AgentMessage {
 	role: "user" | "assistant";
@@ -65,8 +65,7 @@ export async function runBibleAgentTurn(
 	} else if (messages.length === 0) {
 		messages.push({
 			role: "user",
-			content:
-				"안녕하세요. 새로운 이야기를 만들고 싶습니다. 도와주세요.",
+			content: "안녕하세요. 새로운 이야기를 만들고 싶습니다. 도와주세요.",
 		});
 	}
 
@@ -172,9 +171,7 @@ export async function runBibleAgentTurn(
 				title: string;
 				scenes: string[];
 			}) => {
-				const scenesText = input.scenes
-					.map((s: string) => `- ${s}`)
-					.join("\n");
+				const scenesText = input.scenes.map((s: string) => `- ${s}`).join("\n");
 				await appendToFile(
 					"chapters.md",
 					`\n## ${input.number}화: ${input.title}\n${scenesText}\n`,

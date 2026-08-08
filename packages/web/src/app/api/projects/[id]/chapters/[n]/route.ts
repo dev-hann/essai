@@ -2,10 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { loadBible } from "@essai/core";
 import { NextResponse } from "next/server";
-import {
-	chapterFilename,
-	readChapterFile,
-} from "@/lib/chapters.js";
+import { chapterFilename, readChapterFile } from "@/lib/chapters.js";
 import {
 	ProjectNotFoundError,
 	resolveProjectDir,
@@ -21,10 +18,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
 	const { id, n } = await params;
 	const number = Number.parseInt(n, 10);
 	if (!Number.isFinite(number) || number < 1) {
-		return NextResponse.json(
-			{ error: "잘못된 챕터 번호" },
-			{ status: 400 },
-		);
+		return NextResponse.json({ error: "잘못된 챕터 번호" }, { status: 400 });
 	}
 
 	let cwd: string;
@@ -69,10 +63,7 @@ export async function POST(req: Request, { params }: RouteContext) {
 	const { id, n } = await params;
 	const number = Number.parseInt(n, 10);
 	if (!Number.isFinite(number) || number < 1) {
-		return NextResponse.json(
-			{ error: "잘못된 챕터 번호" },
-			{ status: 400 },
-		);
+		return NextResponse.json({ error: "잘못된 챕터 번호" }, { status: 400 });
 	}
 
 	let cwd: string;

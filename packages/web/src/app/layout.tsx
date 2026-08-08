@@ -14,9 +14,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 			<body>
 				<div className="flex min-h-screen">
 					<Sidebar />
-					<main className="flex-1 min-w-0 overflow-x-hidden">
-						{children}
-					</main>
+					<main className="flex-1 min-w-0 overflow-x-hidden">{children}</main>
 				</div>
 			</body>
 		</html>

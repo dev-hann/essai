@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { globalConfigMock, loadProjectStatsMock } = vi.hoisted(() => ({
 	globalConfigMock: vi.fn(),
@@ -86,9 +86,7 @@ describe("HomePage (project list)", () => {
 		const tree = await HomePage();
 		render(tree);
 
-		expect(
-			screen.getByText(/10화 중 3화 완성 · 9,000자/),
-		).toBeInTheDocument();
+		expect(screen.getByText(/10화 중 3화 완성 · 9,000자/)).toBeInTheDocument();
 	});
 
 	it("renders the empty state when there are no projects", async () => {
@@ -99,9 +97,7 @@ describe("HomePage (project list)", () => {
 		const tree = await HomePage();
 		render(tree);
 
-		expect(
-			screen.getByText("등록된 프로젝트가 없습니다"),
-		).toBeInTheDocument();
+		expect(screen.getByText("등록된 프로젝트가 없습니다")).toBeInTheDocument();
 		expect(screen.getByText(/essai init/)).toBeInTheDocument();
 	});
 

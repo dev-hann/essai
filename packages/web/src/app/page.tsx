@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { GlobalConfig } from "@essai/core";
-import { Card, Button } from "@/components/ui.js";
+import Link from "next/link";
+import { Button, Card } from "@/components/ui.js";
 import { loadProjectStats } from "@/lib/projectStats.js";
 
 export const dynamic = "force-dynamic";
@@ -76,8 +76,7 @@ export default async function HomePage() {
 					<div className="text-[13px] text-[var(--color-text-mute)] py-6 text-center">
 						프로젝트가 없습니다.
 						<div className="mt-2 text-[11px]">
-							<code>essai init</code>으로 새 프로젝트를 만들어
-							시작하세요.
+							<code>essai init</code>으로 새 프로젝트를 만들어 시작하세요.
 						</div>
 					</div>
 				</Card>
@@ -87,15 +86,9 @@ export default async function HomePage() {
 						const progress =
 							p.plannedCount === 0
 								? 0
-								: Math.round(
-										(p.writtenCount / p.plannedCount) * 100,
-									);
+								: Math.round((p.writtenCount / p.plannedCount) * 100);
 						return (
-							<Link
-								key={p.id}
-								href={`/p/${p.id}`}
-								className="block"
-							>
+							<Link key={p.id} href={`/p/${p.id}`} className="block">
 								<Card className="hover:border-[var(--color-border-hover)] transition-colors cursor-pointer">
 									<div className="flex items-baseline justify-between mb-2">
 										<div className="text-[14px] font-semibold truncate">

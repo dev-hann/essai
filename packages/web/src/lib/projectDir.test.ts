@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import path from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import { getProjectDir } from "@/lib/project-dir.js";
 
 describe("getProjectDir", () => {

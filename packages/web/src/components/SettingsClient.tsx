@@ -47,7 +47,7 @@ export function SettingsClient({ projectId }: SettingsClientProps) {
 		return () => {
 			cancelled = true;
 		};
-	}, []);
+	}, [apiBase]);
 
 	const onSave = async () => {
 		if (!data) return;
@@ -95,18 +95,14 @@ export function SettingsClient({ projectId }: SettingsClientProps) {
 					<input
 						type="text"
 						value={data.name}
-						onChange={(e) =>
-							setData({ ...data, name: e.target.value })
-						}
+						onChange={(e) => setData({ ...data, name: e.target.value })}
 					/>
 				</Field>
 
 				<Field label="언어">
 					<select
 						value={data.language}
-						onChange={(e) =>
-							setData({ ...data, language: e.target.value })
-						}
+						onChange={(e) => setData({ ...data, language: e.target.value })}
 					>
 						<option value="ko">한국어</option>
 						<option value="en">English</option>
@@ -243,9 +239,7 @@ function Field({
 	return (
 		<label className="grid grid-cols-[140px_1fr] gap-3 items-center">
 			<div>
-				<div className="text-[13px] text-[var(--color-text-dim)]">
-					{label}
-				</div>
+				<div className="text-[13px] text-[var(--color-text-dim)]">{label}</div>
 				{hint && (
 					<div className="text-[10px] text-[var(--color-text-mute)] mt-0.5">
 						{hint}

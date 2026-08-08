@@ -1,14 +1,14 @@
-import Link from "next/link";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import {
+	type ChapterMemory,
 	findEmotionStage,
 	loadBible,
 	MemoryStore,
-	type ChapterMemory,
 } from "@essai/core";
-import { Card, CardHeader, Button } from "@/components/ui.js";
+import Link from "next/link";
 import { ExportButton } from "@/components/ExportButton.js";
+import { Button, Card, CardHeader } from "@/components/ui.js";
 import { listChapterFiles } from "@/lib/chapters.js";
 import { resolveProjectDir } from "@/lib/projectResolver.js";
 
@@ -31,15 +31,11 @@ async function loadDashboard(projectDir: string) {
 	const latest = count === 0 ? 0 : (writtenNumbers[count - 1] ?? 0);
 	const planned = Array.from(bible.chapters.keys()).sort((a, b) => a - b);
 
-	const next =
-		count === 0 ? (planned[0] ?? null) : nextAfter(latest, planned);
+	const next = count === 0 ? (planned[0] ?? null) : nextAfter(latest, planned);
 
 	let totalCharacters = 0;
 	for (const name of files) {
-		const raw = await fs.readFile(
-			path.join(cwd, "chapters", name),
-			"utf-8",
-		);
+		const raw = await fs.readFile(path.join(cwd, "chapters", name), "utf-8");
 		totalCharacters += raw.length;
 	}
 
@@ -155,9 +151,7 @@ export default async function DashboardPage({ params }: PageProps) {
 								{data.emotionStage.stage}단계
 							</div>
 							<div>
-								<div className="text-[14px]">
-									{data.emotionStage.name}
-								</div>
+								<div className="text-[14px]">{data.emotionStage.name}</div>
 								<div className="text-[11px] text-[var(--color-text-mute)]">
 									{data.emotionStage.chapters}
 								</div>
@@ -181,16 +175,11 @@ export default async function DashboardPage({ params }: PageProps) {
 					) : (
 						<ul className="space-y-1.5 text-[12px]">
 							{data.openForeshadowing.slice(0, 12).map((f, i) => (
-								<li
-									key={`${f.chapter}-${i}`}
-									className="flex gap-2"
-								>
+								<li key={`${f.chapter}-${i}`} className="flex gap-2">
 									<span className="text-[var(--color-text-mute)]">
 										{f.chapter}화
 									</span>
-									<span className="text-[var(--color-text-dim)]">
-										{f.item}
-									</span>
+									<span className="text-[var(--color-text-dim)]">{f.item}</span>
 								</li>
 							))}
 						</ul>
@@ -200,9 +189,7 @@ export default async function DashboardPage({ params }: PageProps) {
 				<div className="flex gap-2 items-start">
 					<ExportButton projectId={id} />
 					{data.next !== null && (
-						<Link
-							href={`/p/${id}/chapters/${data.next}?action=write`}
-						>
+						<Link href={`/p/${id}/chapters/${data.next}?action=write`}>
 							<Button variant="primary">다음 화 쓰기</Button>
 						</Link>
 					)}

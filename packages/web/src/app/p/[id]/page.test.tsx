@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
 	resolveProjectDirMock,
@@ -53,9 +53,7 @@ function resetCoreMocks() {
 	});
 
 	loadRecentMock.mockResolvedValue([]);
-	MemoryStoreMock.mockImplementation(function () {
-		return { loadRecent: loadRecentMock };
-	});
+	MemoryStoreMock.mockImplementation(() => ({ loadRecent: loadRecentMock }));
 }
 
 describe("DashboardPage (project-scoped)", () => {
@@ -76,9 +74,7 @@ describe("DashboardPage (project-scoped)", () => {
 		expect(screen.getByText("대시보드")).toBeInTheDocument();
 		expect(screen.getByText("진행 상황")).toBeInTheDocument();
 		expect(screen.getByText("감정 곡선")).toBeInTheDocument();
-		expect(
-			screen.getByText("미회수 복선 (0)"),
-		).toBeInTheDocument();
+		expect(screen.getByText("미회수 복선 (0)")).toBeInTheDocument();
 	});
 
 	it("shows written vs planned chapter counts from the loaded data", async () => {
@@ -87,9 +83,7 @@ describe("DashboardPage (project-scoped)", () => {
 		});
 		render(tree);
 
-		expect(
-			screen.getByText("2화 중 1화 완성"),
-		).toBeInTheDocument();
+		expect(screen.getByText("2화 중 1화 완성")).toBeInTheDocument();
 	});
 
 	it("links the next-chapter button to the project-scoped path", async () => {

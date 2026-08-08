@@ -29,11 +29,7 @@ describe("loadBible", () => {
 			"characters.md",
 			["## 도윤", "- 나이: 25"].join("\n"),
 		);
-		await writeBibleFile(
-			dir,
-			"relationships.md",
-			"- 도윤 → 지아: 호감",
-		);
+		await writeBibleFile(dir, "relationships.md", "- 도윤 → 지아: 호감");
 		await writeBibleFile(
 			dir,
 			"emotion.md",
@@ -79,8 +75,8 @@ describe("loadBible", () => {
 
 		const bible = await loadBible(dir);
 
-		expect(bible.additionalContext["world"]).toBe("# The Continent of Essai");
-		expect(bible.additionalContext["magic"]).toBe("- Fire costs stamina");
+		expect(bible.additionalContext.world).toBe("# The Continent of Essai");
+		expect(bible.additionalContext.magic).toBe("- Fire costs stamina");
 	});
 
 	it("returns an empty BibleData when the directory does not exist", async () => {

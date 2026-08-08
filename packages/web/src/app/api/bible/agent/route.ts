@@ -1,10 +1,10 @@
 import { createModel, ProjectConfig } from "@essai/core";
-import { sseResponse, SseWriter } from "@/lib/sse.js";
 import {
 	type AgentMessage,
 	runBibleAgentTurn,
 } from "@/lib/bible-agent-server.js";
 import { getProjectDir } from "@/lib/project-dir.js";
+import { type SseWriter, sseResponse } from "@/lib/sse.js";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -23,8 +23,7 @@ export async function POST(req: Request) {
 		// empty body — start new session
 	}
 
-	const userMessage =
-		typeof body.message === "string" ? body.message : null;
+	const userMessage = typeof body.message === "string" ? body.message : null;
 	const history = Array.isArray(body.history) ? body.history : [];
 
 	const cwd = getProjectDir();

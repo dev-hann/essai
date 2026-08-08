@@ -4,6 +4,7 @@ import type {
 	EmotionStage,
 	Relationship,
 } from "./types.js";
+
 const HEADER_PREFIX = "##";
 
 function splitSections(md: string): { heading: string; body: string }[] {
@@ -15,7 +16,10 @@ function splitSections(md: string): { heading: string; body: string }[] {
 		const trimmed = line.trim();
 		if (trimmed.startsWith(HEADER_PREFIX)) {
 			if (current) sections.push(current);
-			current = { heading: trimmed.slice(HEADER_PREFIX.length).trim(), body: "" };
+			current = {
+				heading: trimmed.slice(HEADER_PREFIX.length).trim(),
+				body: "",
+			};
 		} else if (current) {
 			current.body = current.body ? `${current.body}\n${line}` : line;
 		}

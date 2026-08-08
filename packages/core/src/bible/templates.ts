@@ -106,9 +106,7 @@ export async function loadTemplate(
 	};
 }
 
-export async function listTemplates(
-	templatesDir: string,
-): Promise<Template[]> {
+export async function listTemplates(templatesDir: string): Promise<Template[]> {
 	let entries: string[];
 	try {
 		entries = await fs.readdir(templatesDir);

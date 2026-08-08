@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui.js";
-import { Markdown } from "@/components/Markdown.js";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { DiffView } from "@/components/DiffView.js";
+import { Markdown } from "@/components/Markdown.js";
 import { Tabs } from "@/components/Tabs.js";
+import { Button } from "@/components/ui.js";
 
 type ReviewData = {
 	feedback: string;
@@ -100,19 +100,16 @@ export function ChapterDetailClient({
 							const delta =
 								typeof parsed.data === "string"
 									? parsed.data
-									: (parsed.data as { delta?: string })
-											.delta ?? "";
+									: ((parsed.data as { delta?: string }).delta ?? "");
 							collected += delta;
 							setRewrite({ kind: "writing", output: collected });
 						} else if (parsed.event === "saved") {
-							const wc = (
-								parsed.data as { wordCount?: number }
-							).wordCount;
+							const wc = (parsed.data as { wordCount?: number }).wordCount;
 							if (typeof wc === "number") finalWordCount = wc;
 						} else if (parsed.event === "error") {
-							const message = (
-								parsed.data as { message?: string }
-							).message ?? "알 수 없는 오류";
+							const message =
+								(parsed.data as { message?: string }).message ??
+								"알 수 없는 오류";
 							throw new Error(message);
 						}
 					}
@@ -244,9 +241,7 @@ export function ChapterDetailClient({
 				<div className="pt-6 grid gap-4">
 					<section className="border border-[var(--color-border)] rounded-lg p-4 bg-[var(--color-surface)]">
 						<div className="flex items-center justify-between mb-2">
-							<h3 className="text-[13px] font-semibold">
-								AI 리뷰
-							</h3>
+							<h3 className="text-[13px] font-semibold">AI 리뷰</h3>
 							<Button
 								variant="primary"
 								onClick={onReview}
@@ -297,9 +292,7 @@ export function ChapterDetailClient({
 					</section>
 
 					<section className="border border-[var(--color-border)] rounded-lg p-4 bg-[var(--color-surface)]">
-						<h3 className="text-[13px] font-semibold mb-2">
-							수정 지시
-						</h3>
+						<h3 className="text-[13px] font-semibold mb-2">수정 지시</h3>
 						<textarea
 							value={instruction}
 							onChange={(e) => setInstruction(e.target.value)}
@@ -323,9 +316,7 @@ export function ChapterDetailClient({
 									onClick={onRewrite}
 									disabled={rewrite.kind === "writing"}
 								>
-									{rewrite.kind === "writing"
-										? "재생성 중…"
-										: "재생성"}
+									{rewrite.kind === "writing" ? "재생성 중…" : "재생성"}
 								</Button>
 							)}
 							{rewrite.kind === "writing" && (
@@ -338,9 +329,7 @@ export function ChapterDetailClient({
 
 					{rewrite.kind === "writing" && (
 						<section className="border border-[var(--color-border)] rounded-lg p-4 bg-[var(--color-surface)]">
-							<h3 className="text-[13px] font-semibold mb-2">
-								실시간 출력
-							</h3>
+							<h3 className="text-[13px] font-semibold mb-2">실시간 출력</h3>
 							<pre className="whitespace-pre-wrap text-[12px] font-mono max-h-96 overflow-auto scrollbar">
 								{rewrite.output || "…"}
 							</pre>
@@ -355,8 +344,8 @@ export function ChapterDetailClient({
 
 					{rewrite.kind === "done" && (
 						<div className="text-[12px] text-[var(--color-success)]">
-							재생성 완료 ({rewrite.wordCount.toLocaleString()}자).
-							비교 탭을 확인하세요.
+							재생성 완료 ({rewrite.wordCount.toLocaleString()}자). 비교 탭을
+							확인하세요.
 						</div>
 					)}
 				</div>
@@ -373,22 +362,17 @@ export function ChapterDetailClient({
 								if (!originalForCompare) return;
 								setRestoreBusy(true);
 								try {
-									const res = await fetch(
-										`${apiBase}/chapters/${number}`,
-										{
-											method: "POST",
-											headers: {
-												"Content-Type": "application/json",
-											},
-											body: JSON.stringify({
-												content: originalForCompare,
-											}),
+									const res = await fetch(`${apiBase}/chapters/${number}`, {
+										method: "POST",
+										headers: {
+											"Content-Type": "application/json",
 										},
-									);
+										body: JSON.stringify({
+											content: originalForCompare,
+										}),
+									});
 									if (!res.ok) {
-										throw new Error(
-											`복원 실패 (${res.status})`,
-										);
+										throw new Error(`복원 실패 (${res.status})`);
 									}
 									setContent(originalForCompare);
 									setWordCount(originalForCompare.length);
@@ -399,10 +383,7 @@ export function ChapterDetailClient({
 								} catch (err) {
 									setRewrite({
 										kind: "error",
-										message:
-											err instanceof Error
-												? err.message
-												: String(err),
+										message: err instanceof Error ? err.message : String(err),
 									});
 								} finally {
 									setRestoreBusy(false);
@@ -427,9 +408,7 @@ export function ChapterDetailClient({
 	);
 }
 
-function parseSse(
-	chunk: string,
-): { event: string; data: unknown } | null {
+function parseSse(chunk: string): { event: string; data: unknown } | null {
 	const lines = chunk.split("\n");
 	let event: string | null = null;
 	const dataParts: string[] = [];

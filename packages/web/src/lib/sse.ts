@@ -9,8 +9,7 @@ export class SseWriter {
 	) {}
 
 	async event(name: string, data: unknown): Promise<void> {
-		const payload =
-			typeof data === "string" ? data : JSON.stringify(data);
+		const payload = typeof data === "string" ? data : JSON.stringify(data);
 		const chunk = `event: ${name}\ndata: ${payload}\n\n`;
 		this.controller.enqueue(this.encoder.encode(chunk));
 	}

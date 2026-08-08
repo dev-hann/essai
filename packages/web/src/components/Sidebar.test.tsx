@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { SidebarContent } from "@/components/Sidebar.js";
 
 const noop = () => {};
@@ -100,9 +100,7 @@ describe("SidebarContent", () => {
 			/>,
 		);
 
-		expect(
-			screen.getByText("계획된 챕터가 없습니다."),
-		).toBeInTheDocument();
+		expect(screen.getByText("계획된 챕터가 없습니다.")).toBeInTheDocument();
 	});
 
 	it("renders the write-next button pointing at the first unwritten chapter", () => {
@@ -118,10 +116,7 @@ describe("SidebarContent", () => {
 		);
 
 		const writeNext = screen.getByText("+ 다음 화").closest("a");
-		expect(writeNext).toHaveAttribute(
-			"href",
-			"/p/abc/chapters/2?action=write",
-		);
+		expect(writeNext).toHaveAttribute("href", "/p/abc/chapters/2?action=write");
 	});
 
 	it("renders the project switcher with the provided projects", () => {
@@ -142,9 +137,10 @@ describe("SidebarContent", () => {
 
 		const select = screen.getByRole("combobox") as HTMLSelectElement;
 		expect(select.value).toBe("abc");
-		expect(
-			Array.from(select.options).map((o) => o.value),
-		).toEqual(["abc", "xyz"]);
+		expect(Array.from(select.options).map((o) => o.value)).toEqual([
+			"abc",
+			"xyz",
+		]);
 	});
 
 	it("links the logo back to the home page", () => {

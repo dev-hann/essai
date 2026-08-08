@@ -60,16 +60,12 @@ export async function GET() {
 	const count = written.length;
 	const latest = count === 0 ? 0 : (written[count - 1] ?? 0);
 	const planned = Array.from(bible.chapters.keys()).sort((a, b) => a - b);
-	const next =
-		count === 0 ? (planned[0] ?? null) : nextAfter(latest, planned);
+	const next = count === 0 ? (planned[0] ?? null) : nextAfter(latest, planned);
 
 	let totalCharacters = 0;
 	for (const name of files) {
 		try {
-			const raw = await fs.readFile(
-				path.join(cwd, "chapters", name),
-				"utf-8",
-			);
+			const raw = await fs.readFile(path.join(cwd, "chapters", name), "utf-8");
 			totalCharacters += raw.length;
 		} catch {
 			// skip

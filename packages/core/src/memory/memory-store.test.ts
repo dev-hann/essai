@@ -2,10 +2,13 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { ChapterMemory } from "./types.js";
 import { MemoryStore } from "./memory-store.js";
+import type { ChapterMemory } from "./types.js";
 
-function makeMemory(chapter: number, overrides: Partial<ChapterMemory> = {}): ChapterMemory {
+function makeMemory(
+	chapter: number,
+	overrides: Partial<ChapterMemory> = {},
+): ChapterMemory {
 	return {
 		chapter,
 		title: `Chapter ${chapter}`,
@@ -128,7 +131,10 @@ describe("MemoryStore", () => {
 		});
 
 		it("skips files that are not memory JSON without throwing", async () => {
-			await fs.writeFile(path.join(tmp, "001.json"), JSON.stringify(makeMemory(1)));
+			await fs.writeFile(
+				path.join(tmp, "001.json"),
+				JSON.stringify(makeMemory(1)),
+			);
 			await fs.writeFile(path.join(tmp, "notes.md"), "# notes");
 
 			const store = new MemoryStore();

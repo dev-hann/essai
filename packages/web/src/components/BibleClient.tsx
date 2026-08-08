@@ -193,7 +193,14 @@ export function BibleClient({ projectId, files }: BibleClientProps) {
 				});
 			}
 		},
-		[chatBusy, chatFinished, chatHistory, handleAgentEvent, pushMessage, apiBase],
+		[
+			chatBusy,
+			chatFinished,
+			chatHistory,
+			handleAgentEvent,
+			pushMessage,
+			apiBase,
+		],
 	);
 
 	return (
@@ -234,9 +241,7 @@ export function BibleClient({ projectId, files }: BibleClientProps) {
 							>
 								{f.section}
 								{dirty[f.section] ? (
-									<span className="ml-1 text-[var(--color-warning)]">
-										•
-									</span>
+									<span className="ml-1 text-[var(--color-warning)]">•</span>
 								) : null}
 							</button>
 						))}
@@ -262,14 +267,9 @@ export function BibleClient({ projectId, files }: BibleClientProps) {
 									<Button
 										variant="primary"
 										onClick={onSave}
-										disabled={
-											saveState === "saving" ||
-											!dirty[current.section]
-										}
+										disabled={saveState === "saving" || !dirty[current.section]}
 									>
-										{saveState === "saving"
-											? "저장 중…"
-											: "저장"}
+										{saveState === "saving" ? "저장 중…" : "저장"}
 									</Button>
 								</div>
 							</div>
@@ -325,18 +325,14 @@ export function BibleClient({ projectId, files }: BibleClientProps) {
 								type="text"
 								value={chatInput}
 								onChange={(e) => setChatInput(e.target.value)}
-								placeholder={
-									chatFinished ? "세션 종료됨" : "답변 입력…"
-								}
+								placeholder={chatFinished ? "세션 종료됨" : "답변 입력…"}
 								disabled={chatBusy || chatFinished}
 								className="flex-1"
 							/>
 							<Button
 								type="submit"
 								variant="primary"
-								disabled={
-									chatBusy || !chatInput.trim() || chatFinished
-								}
+								disabled={chatBusy || !chatInput.trim() || chatFinished}
 							>
 								전송
 							</Button>

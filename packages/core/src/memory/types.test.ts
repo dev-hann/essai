@@ -58,9 +58,7 @@ describe("chapterMemorySchema", () => {
 	it("rejects an invalid foreshadowing status", () => {
 		const bad = {
 			...validMemory(),
-			foreshadowing: [
-				{ item: "x", status: "maybe", chapterIntroduced: 1 },
-			],
+			foreshadowing: [{ item: "x", status: "maybe", chapterIntroduced: 1 }],
 		};
 
 		expect(() => chapterMemorySchema.parse(bad)).toThrow();

@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { loadBible, type BibleData } from "@essai/core";
+import { type BibleData, loadBible } from "@essai/core";
 import { listChapterFiles } from "@/lib/chapters.js";
 
 export interface ProjectStats {

@@ -9,7 +9,7 @@ import path from "node:path";
  */
 export function getProjectDir(): string {
 	const fromEnv = process.env.ESSAI_PROJECT_DIR;
-	if (fromEnv && fromEnv.trim()) {
+	if (fromEnv?.trim()) {
 		return path.isAbsolute(fromEnv) ? fromEnv : path.resolve(fromEnv);
 	}
 	return process.cwd();

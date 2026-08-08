@@ -6,8 +6,8 @@ import {
 	ProjectConfig,
 	Summarizer,
 } from "@essai/core";
-import { sseResponse, SseWriter } from "@/lib/sse.js";
 import { getProjectDir } from "@/lib/project-dir.js";
+import { type SseWriter, sseResponse } from "@/lib/sse.js";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -48,9 +48,7 @@ export async function POST(req: Request, { params }: RouteContext) {
 
 		const plan = bible.chapters.get(number);
 		if (!plan) {
-			throw new Error(
-				`bible/chapters.md에 ${number}화 계획이 없습니다`,
-			);
+			throw new Error(`bible/chapters.md에 ${number}화 계획이 없습니다`);
 		}
 
 		const memoryStore = new MemoryStore();
@@ -60,18 +58,18 @@ export async function POST(req: Request, { params }: RouteContext) {
 		);
 
 		const chapterWriter = new ChapterWriter(config, bible, cwd);
-		const { content, wordCount } = await chapterWriter.writeChapter(
-			number,
-			{
-				...(body.instruction ? { instruction: body.instruction } : {}),
-				memorySummaries,
-				onToken: (delta) => {
-					void writer.event("token", { delta });
-				},
+		const { content, wordCount } = await chapterWriter.writeChapter(number, {
+			...(body.instruction ? { instruction: body.instruction } : {}),
+			memorySummaries,
+			onToken: (delta) => {
+				void writer.event("token", { delta });
 			},
-		);
+		});
 
-		await writer.event("saved", { wordCount, path: `chapters/${number.toString().padStart(3, "0")}.md` });
+		await writer.event("saved", {
+			wordCount,
+			path: `chapters/${number.toString().padStart(3, "0")}.md`,
+		});
 
 		const summarizer = new Summarizer();
 		try {

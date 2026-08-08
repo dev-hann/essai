@@ -7,11 +7,11 @@ import {
 	ProjectConfig,
 	Summarizer,
 } from "@essai/core";
-import { sseResponse, SseWriter } from "@/lib/sse.js";
 import {
 	ProjectNotFoundError,
 	resolveProjectDir,
 } from "@/lib/projectResolver.js";
+import { type SseWriter, sseResponse } from "@/lib/sse.js";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -60,9 +60,7 @@ export async function POST(req: Request, { params }: RouteContext) {
 
 		const plan = bible.chapters.get(number);
 		if (!plan) {
-			throw new Error(
-				`bible/chapters.md에 ${number}화 계획이 없습니다`,
-			);
+			throw new Error(`bible/chapters.md에 ${number}화 계획이 없습니다`);
 		}
 
 		const memoryStore = new MemoryStore();

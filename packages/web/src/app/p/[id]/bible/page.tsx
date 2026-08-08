@@ -1,8 +1,8 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { BibleClient } from "@/components/BibleClient.js";
 import { BIBLE_FILES } from "@/lib/chapters.js";
 import { resolveProjectDir } from "@/lib/projectResolver.js";
-import { BibleClient } from "@/components/BibleClient.js";
 
 export const dynamic = "force-dynamic";
 

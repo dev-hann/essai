@@ -1,9 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { NextResponse } from "next/server";
-import {
-	isValidBibleSection,
-} from "@/lib/chapters.js";
+import { isValidBibleSection } from "@/lib/chapters.js";
 import { getProjectDir } from "@/lib/project-dir.js";
 
 export const dynamic = "force-dynamic";

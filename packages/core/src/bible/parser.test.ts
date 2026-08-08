@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
 	findEmotionStage,
 	parseChapterRange,
-	parseCharacters,
 	parseChapters,
+	parseCharacters,
 	parseEmotion,
 	parseList,
 	parseRelationships,

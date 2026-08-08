@@ -1,5 +1,4 @@
 import { createModel, ProjectConfig } from "@essai/core";
-import { sseResponse, SseWriter } from "@/lib/sse.js";
 import {
 	type AgentMessage,
 	runBibleAgentTurn,
@@ -8,6 +7,7 @@ import {
 	ProjectNotFoundError,
 	resolveProjectDir,
 } from "@/lib/projectResolver.js";
+import { type SseWriter, sseResponse } from "@/lib/sse.js";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -32,8 +32,7 @@ export async function POST(req: Request, { params }: RouteContext) {
 		// empty body — start new session
 	}
 
-	const userMessage =
-		typeof body.message === "string" ? body.message : null;
+	const userMessage = typeof body.message === "string" ? body.message : null;
 	const history = Array.isArray(body.history) ? body.history : [];
 
 	let cwd: string;

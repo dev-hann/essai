@@ -1,8 +1,8 @@
-import { notFound } from "next/navigation";
 import path from "node:path";
 import { loadBible } from "@essai/core";
-import { readChapterFile } from "@/lib/chapters.js";
+import { notFound } from "next/navigation";
 import { ChapterDetailClient } from "@/components/ChapterDetailClient.js";
+import { readChapterFile } from "@/lib/chapters.js";
 import { resolveProjectDir } from "@/lib/projectResolver.js";
 
 export const dynamic = "force-dynamic";
@@ -23,8 +23,7 @@ export default async function ChapterDetailPage({
 	}
 
 	const { action } = await searchParams;
-	const initialAction =
-		action === "write" ? ("write" as const) : null;
+	const initialAction = action === "write" ? ("write" as const) : null;
 
 	const cwd = await resolveProjectDir(id);
 	const bible = await loadBible(path.join(cwd, "bible"));

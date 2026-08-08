@@ -42,9 +42,7 @@ export async function loadBible(bibleDir: string): Promise<BibleData> {
 		return bible;
 	}
 
-	const markdownFiles = entries
-		.filter((name) => name.endsWith(".md"))
-		.sort();
+	const markdownFiles = entries.filter((name) => name.endsWith(".md")).sort();
 
 	for (const fileName of markdownFiles) {
 		const filePath = path.join(bibleDir, fileName);

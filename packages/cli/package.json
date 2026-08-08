@@ -7,7 +7,13 @@
 		"essai": "./dist/index.js"
 	},
 	"description": "AI writing tool where the author holds the pencil — write fiction and novels with structured AI assistance.",
-	"keywords": ["ai", "fiction", "writing", "novel", "cli"],
+	"keywords": [
+		"ai",
+		"fiction",
+		"writing",
+		"novel",
+		"cli"
+	],
 	"license": "MIT",
 	"author": "Hann (dev-hann)",
 	"repository": {

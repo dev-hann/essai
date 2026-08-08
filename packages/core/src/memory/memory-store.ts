@@ -21,7 +21,10 @@ export class MemoryStore {
 		await fs.writeFile(file, `${json}\n`, "utf-8");
 	}
 
-	async load(memoryDir: string, chapter: number): Promise<ChapterMemory | null> {
+	async load(
+		memoryDir: string,
+		chapter: number,
+	): Promise<ChapterMemory | null> {
 		const file = memoryFile(memoryDir, chapter);
 		let raw: string;
 		try {

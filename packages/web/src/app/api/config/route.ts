@@ -2,7 +2,7 @@ import { ProjectConfig } from "@essai/core";
 import { NextResponse } from "next/server";
 import { getProjectDir } from "@/lib/project-dir.js";
 
-const CONFIG_FILENAME = "essai.json";
+const _CONFIG_FILENAME = "essai.json";
 const MASKED_KEY = "***";
 
 export const dynamic = "force-dynamic";
