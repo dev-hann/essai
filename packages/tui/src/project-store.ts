@@ -94,3 +94,51 @@ export async function listBibleSections(
 	}
 	return sections;
 }
+
+/**
+ * Spawn an essai CLI subcommand (`write next`, `audit <n>`, etc.) with the
+ * project dir pinned via ESSAI_PROJECT_DIR. Inherits stdio so streaming
+ * output reaches the terminal directly — Ink's render loop would interfere
+ * if we tried to capture chunks ourselves.
+ *
+ * Resolves with the exit code. Non-zero exits are surfaced to the caller;
+ * we don't throw so the TUI can show the error and resume navigation.
+ */
+export async function runEssaiCommand(
+	args: string[],
+	projectDir: string,
+): Promise<number> {
+	const { spawn } = await import("node:child_process");
+	const cliEntry = await resolveCliEntry();
+	return new Promise<number>((resolve) => {
+		const child = spawn(process.execPath, [cliEntry, ...args], {
+			cwd: projectDir,
+			stdio: "inherit",
+			env: {
+				...process.env,
+				ESSAI_PROJECT_DIR: projectDir,
+			},
+		});
+		child.on("error", () => resolve(1));
+		child.on("exit", (code) => resolve(code ?? 0));
+	});
+}
+
+async function resolveCliEntry(): Promise<string> {
+	const { fileURLToPath } = await import("node:url");
+	const here = path.dirname(fileURLToPath(import.meta.url));
+	// From packages/tui/dist/project-store.js → packages/cli/dist/index.js
+	return path.resolve(here, "..", "..", "cli", "dist", "index.js");
+}
+
+/**
+ * Find the latest written chapter number under <projectDir>/chapters.
+ * Returns null when no chapters exist yet.
+ */
+export async function latestChapterNumber(
+	projectDir: string,
+): Promise<number | null> {
+	const chapters = await listChapters(projectDir);
+	if (chapters.length === 0) return null;
+	return chapters[chapters.length - 1]!.number;
+}

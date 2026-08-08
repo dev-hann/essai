@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { render } from "ink";
+import { render, Text, useApp, useInput } from "ink";
 import { type ReactNode, useState } from "react";
 import {
 	BiblePicker,
@@ -8,13 +8,16 @@ import {
 	ChapterView,
 	ProjectMenu,
 	ProjectPicker,
+	ScreenShell,
 } from "./components.js";
 import {
 	type ChapterSummary,
+	latestChapterNumber,
 	listBibleSections,
 	listChapters,
 	listProjects,
 	readChapter,
+	runEssaiCommand,
 } from "./project-store.js";
 
 type Screen =
@@ -23,7 +26,8 @@ type Screen =
 	| { kind: "chapters"; project: ProjectRef }
 	| { kind: "chapter-view"; project: ProjectRef; chapter: ChapterSummary }
 	| { kind: "bible"; project: ProjectRef }
-	| { kind: "bible-section"; project: ProjectRef; section: BibleRef };
+	| { kind: "bible-section"; project: ProjectRef; section: BibleRef }
+	| { kind: "command-result"; project: ProjectRef; message: string };
 
 interface ProjectRef {
 	name: string;
@@ -34,6 +38,23 @@ interface ProjectRef {
 interface BibleRef {
 	name: string;
 	content: string;
+}
+
+function CommandResult(props: {
+	message: string;
+	onBack: () => void;
+}): ReactNode {
+	const { exit } = useApp();
+	useInput((input, key) => {
+		if (input === "q" || key.return || key.escape) props.onBack();
+		else if (input === "Q") exit();
+	});
+	return (
+		<ScreenShell title="result" onBack={props.onBack}>
+			<Text>{props.message}</Text>
+			<Text dimColor>press enter / q / esc to return to menu</Text>
+		</ScreenShell>
+	);
 }
 
 interface AppProps {
@@ -64,6 +85,22 @@ function App({ projects }: AppProps): ReactNode {
 		setScreen({ kind: "bible", project });
 	}
 
+	async function runCommand(
+		project: ProjectRef,
+		label: string,
+		args: string[],
+	) {
+		// Hide our render loop briefly so the spawned CLI can stream to the
+		// terminal without Ink's output interleaving. The `useApp().exit()`
+		// pattern would fully unmount; we use raw mode pause instead.
+		process.stdout.write("\x1b[?25l"); // hide cursor while CLI runs
+		const code = await runEssaiCommand(args, project.path);
+		process.stdout.write("\x1b[?25h"); // restore cursor
+		const message =
+			code === 0 ? `${label} finished.` : `${label} exited with code ${code}`;
+		setScreen({ kind: "command-result", project, message });
+	}
+
 	switch (screen.kind) {
 		case "projects":
 			return (
@@ -78,9 +115,36 @@ function App({ projects }: AppProps): ReactNode {
 					project={screen.project}
 					onSelect={(action) => {
 						if (action === "chapters") openChapters(screen.project);
-						else openBible(screen.project);
+						else if (action === "bible") openBible(screen.project);
+						else if (action === "write-next") {
+							runCommand(screen.project, "essai write next", ["write", "next"]);
+						} else if (action === "audit-latest") {
+							latestChapterNumber(screen.project.path).then((n) => {
+								if (n === null) {
+									setScreen({
+										kind: "command-result",
+										project: screen.project,
+										message: "No chapters to audit yet.",
+									});
+									return;
+								}
+								runCommand(screen.project, `essai audit ${n}`, [
+									"audit",
+									String(n),
+								]);
+							});
+						}
 					}}
 					onBack={() => setScreen({ kind: "projects" })}
+				/>
+			);
+		case "command-result":
+			return (
+				<CommandResult
+					message={screen.message}
+					onBack={() =>
+						setScreen({ kind: "project-menu", project: screen.project })
+					}
 				/>
 			);
 		case "chapters":

@@ -253,10 +253,12 @@ export function BibleSectionView({
 	);
 }
 
-/** Tiny top-level menu for a single project (chapters / bible / quit). */
+/** Tiny top-level menu for a single project. */
 interface ProjectMenuProps {
 	project: { name: string; path: string };
-	onSelect: (action: "chapters" | "bible") => void;
+	onSelect: (
+		action: "chapters" | "bible" | "write-next" | "audit-latest",
+	) => void;
 	onBack: () => void;
 }
 
@@ -265,9 +267,17 @@ export function ProjectMenu({
 	onSelect,
 	onBack,
 }: ProjectMenuProps): ReactNode {
-	const items: SelectInputProps<"chapters" | "bible">["items"] = [
+	const items: SelectInputProps<
+		"chapters" | "bible" | "write-next" | "audit-latest"
+	>["items"] = [
 		{ key: "chapters", label: "📖 Chapters", value: "chapters" },
 		{ key: "bible", label: "📓 Bible", value: "bible" },
+		{ key: "write-next", label: "✍️  Write next chapter", value: "write-next" },
+		{
+			key: "audit-latest",
+			label: "🔍 Audit latest chapter",
+			value: "audit-latest",
+		},
 	];
 	return (
 		<ScreenShell
