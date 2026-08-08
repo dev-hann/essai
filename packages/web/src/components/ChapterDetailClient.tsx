@@ -442,54 +442,51 @@ export function ChapterDetailClient({
 				</div>
 			)}
 
-		{tab === "validate" && (
-			<div className="pt-6 grid gap-3">
-				<h3 className="text-[13px] font-semibold">정적 일관성 검증</h3>
-				<p className="text-[11px] text-[var(--color-text-mute)]">
-					bible/world.md 기반 결정론적 검사 (LLM 미사용). floor-consistency ·
-					forbidden-props · visa-duration · korean-register · english-em-dash ·
-					mixed-script-punctuation.
-				</p>
-				<div className="flex gap-2">
-					<Button
-						onClick={onValidate}
-						disabled={validationBusy || !content}
-					>
-						{validationBusy ? "검증 중…" : "정적 검증 실행"}
-					</Button>
-					{validation && validation.findings.length > 0 && (
-						<Button
-							onClick={() =>
-								copyFindings(
-									validation.findings,
-									`정적 검증 — 챕터 ${number}`,
-								)
-							}
-						>
-							결과 복사
+			{tab === "validate" && (
+				<div className="pt-6 grid gap-3">
+					<h3 className="text-[13px] font-semibold">정적 일관성 검증</h3>
+					<p className="text-[11px] text-[var(--color-text-mute)]">
+						bible/world.md 기반 결정론적 검사 (LLM 미사용). floor-consistency ·
+						forbidden-props · visa-duration · korean-register · english-em-dash
+						· mixed-script-punctuation.
+					</p>
+					<div className="flex gap-2">
+						<Button onClick={onValidate} disabled={validationBusy || !content}>
+							{validationBusy ? "검증 중…" : "정적 검증 실행"}
 						</Button>
-					)}
-				</div>
-				{validationError && (
-					<div className="text-[12px] text-[var(--color-danger)]">
-						{validationError}
+						{validation && validation.findings.length > 0 && (
+							<Button
+								onClick={() =>
+									copyFindings(
+										validation.findings,
+										`정적 검증 — 챕터 ${number}`,
+									)
+								}
+							>
+								결과 복사
+							</Button>
+						)}
 					</div>
-				)}
-				{validation && (
-					<div className="grid gap-2">
-						{validation.findings.length === 0 ? (
-							<p className="text-[12px] text-[var(--color-text-mute)]">
-								✓ 이슈 없음
-							</p>
-						) : (
-							<ul className="grid gap-1 text-[12px]">
-								{validation.findings.map((f, i) => (
-									<li
-										// biome-ignore lint/suspicious/noArrayIndexKey: findings have no stable id
-										key={i}
-										className={
-											f.severity === "error"
-												? "text-[var(--color-danger)]"
+					{validationError && (
+						<div className="text-[12px] text-[var(--color-danger)]">
+							{validationError}
+						</div>
+					)}
+					{validation && (
+						<div className="grid gap-2">
+							{validation.findings.length === 0 ? (
+								<p className="text-[12px] text-[var(--color-text-mute)]">
+									✓ 이슈 없음
+								</p>
+							) : (
+								<ul className="grid gap-1 text-[12px]">
+									{validation.findings.map((f, i) => (
+										<li
+											// biome-ignore lint/suspicious/noArrayIndexKey: findings have no stable id
+											key={i}
+											className={
+												f.severity === "error"
+													? "text-[var(--color-danger)]"
 													: f.severity === "warning"
 														? "text-[var(--color-warning)]"
 														: "text-[var(--color-text-mute)]"
@@ -525,20 +522,20 @@ export function ChapterDetailClient({
 						8개 차원 (캐릭터·타임라인·설정·감정·언어·페이싱·정보경계·craft). LLM
 						호출당 약간의 토큰 비용 발생.
 					</p>
-				<div className="flex gap-2">
-					<Button onClick={onAudit} disabled={auditBusy || !content}>
-						{auditBusy ? "감사 중…" : "LLM 감사 실행"}
-					</Button>
-					{audit && audit.findings.length > 0 && (
-						<Button
-							onClick={() =>
-								copyFindings(audit.findings, `LLM 감사 — 챕터 ${number}`)
-							}
-						>
-							결과 복사
+					<div className="flex gap-2">
+						<Button onClick={onAudit} disabled={auditBusy || !content}>
+							{auditBusy ? "감사 중…" : "LLM 감사 실행"}
 						</Button>
-					)}
-				</div>
+						{audit && audit.findings.length > 0 && (
+							<Button
+								onClick={() =>
+									copyFindings(audit.findings, `LLM 감사 — 챕터 ${number}`)
+								}
+							>
+								결과 복사
+							</Button>
+						)}
+					</div>
 					{auditError && (
 						<div className="text-[12px] text-[var(--color-danger)]">
 							{auditError}

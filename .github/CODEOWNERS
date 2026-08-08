@@ -1,0 +1,16 @@
+# CODEOWNERS — GitHub auto-review requests.
+# Each line is `path  @owner`. Last matching pattern wins, like gitignore.
+# The repository currently has a single maintainer; adjust as the project
+# grows.
+
+*                       @dev-hann
+
+# Core library + memory shape touch the writing pipeline and deserve a
+# closer look. List them explicitly so future areas cannot silently
+# bypass review by matching the global rule only.
+/packages/core/         @dev-hann
+/packages/cli/          @dev-hann
+/packages/web/          @dev-hann
+/packages/tui/          @dev-hann
+/.github/               @dev-hann
+/.changeset/            @dev-hann

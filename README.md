@@ -64,6 +64,8 @@ essai/
 | `config set <key> <value>` | 설정값 쓰기 (`-g`로 글로벌) |
 | `config get <key>` | 설정값 읽기 |
 | `config show` | 전체 `essai.json` 출력 |
+| `config export [--redact]` | 글로벌 설정 JSON 덤프 (`--redact`: apiKey 마스킹) |
+| `config import [file] [--merge] [--skip-api-key]` | 글로벌 설정 JSON 교체/병합 (파일 또는 stdin) |
 | `write <chapter>` | 챕터 작성 (숫자 또는 `next`) |
 | `read <chapter>` | 챕터 출력 |
 | `list` | 작성된 챕터 목록 + 글자 수 |
@@ -71,11 +73,12 @@ essai/
 | `context <chapter>` | 챕터 작성 시 주입될 컨텍스트 미리보기 |
 | `rewrite <chapter>` | 챕터 처음부터 다시 생성 (덮어쓰기, `-i` 지시문, 자동 `.bak` 백업) |
 | `review <chapter>` | 챕터 품질 피드백 (`-r` 커스텀 룰) |
-| `validate <chapter>` | 정적 일관성 검사 (`bible/world.md` 기반, `--disable <rule>`로 특정 룰 끄기) |
+| `validate <chapter>` | 정적 일관성 검사 (`--disable <rule>`, 언어별 룰: korean-register, english-em-dash, mixed-script-punctuation) |
+| `audit <chapter>` | LLM 8차원 연속성 감사 (`--only dim1,dim2`) |
 | `export` | 모든 챕터를 단일 파일로 (`-f md\|txt`) |
 | `serve` | 웹 UI 시작 (`-p`, `--start`) |
 | `tui` | 터미널 UI (Ink) 시작 |
-| `bible init/show/edit/validate/add` | `bible/` 폴더 관리 (`bible init <template> --agent`로 AI 대화형 생성) |
+| `bible init/show/edit/validate/add/agent` | `bible/` 폴더 관리 (`bible init <template> --agent` / `bible agent`로 AI 대화형 생성) |
 
 ### `write` 플래그
 
@@ -159,10 +162,15 @@ LLM 기본값, 언어, 그리고 생성된 프로젝트 목록을 보관한다. 
 - 입국: 9월 / 귀국: 3월 / 총 6개월
 ```
 
-검사 항목:
+검사 항목 (언어 무관):
 - **floor-consistency** — "벽 하나 사이" 인물이 다른 층에 살 때
 - **forbidden-props** — `world.md`가 금지한 소품이 본문에 등장할 때
 - **visa-duration** — 비자 종류 vs 체류 기간 불일치
+- **mixed-script-punctuation** — 한글 문단이 ASCII 직견따옴표(`"…"`)를 쓸 때
+
+검사 항목 (언어별):
+- **korean-register** (ko) — 한 챕터 안에서 `-습니다` (격식체)와 `반가워/좋아/그래` (해요체/반말)가 혼용될 때
+- **english-em-dash** (en) — 한 문단에 em-dash(`—`) 3개 이상 (AI 텔)
 
 ```bash
 $ essai validate 1
@@ -170,3 +178,24 @@ $ essai validate 1
 ⚠ [forbidden-props] Text mixes "도어락" (keyless) with "열쇠" (key)
 ⚠ [visa-duration] Visa type matched (H-?1...) typically allows ~6 months, but text mentions 12 months
 ```
+
+## LLM 연속성 감사 (`essai audit`)
+
+정적 validator가 잡지 못하는 의미적 일관성 문제를 LLM이 검사합니다. 8개 차원을 순회하며 각각 한 줄 JSON 평결을 반환합니다.
+
+```bash
+$ essai audit 3                      # 8개 차원 전부
+$ essai audit 3 --only pacing,craft-rule-violations
+```
+
+차원:
+- **character-consistency** — 캐릭터 말투/성격/애착 유형이 bible과 다른지
+- **timeline** — 시간 역행, 동일 일 불가능 사건, 계절 불일치
+- **setting-conflict** — 공간 레이아웃, 거리, 소품의 이전 설정 충돌
+- **emotion-continuity** — 감정선이 자연스럽게 이어지는지
+- **language-progression** — 언어 능력 진행 (외국인 한국어 학습자 등)
+- **pacing** — 로맨스 아크의 한 비트라도 전진하는지, padding 아닌지
+- **information-barrier** — 캐릭터가 알 수 없는 정보에 기반해 행동하는 "작가 누출"
+- **craft-rule-violations** — show/tell 위반, 비유 과다, padding
+
+웹 UI에서도 같은 결과를 "정적 검증"/"LLM 감사" 탭으로 볼 수 있고 "결과 복사" 버튼으로 클립보드에 마크다운 요약이 복사됩니다.
