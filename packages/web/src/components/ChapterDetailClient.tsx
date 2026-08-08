@@ -14,6 +14,21 @@ type ReviewData = {
 	needsFix: boolean;
 } | null;
 
+type ValidationFinding = {
+	severity: "error" | "warning" | "info";
+	rule: string;
+	message: string;
+	excerpt?: string;
+};
+
+type ValidationData = {
+	findings: ValidationFinding[];
+} | null;
+
+type AuditData = {
+	findings: ValidationFinding[];
+} | null;
+
 type WriteState =
 	| { kind: "idle" }
 	| { kind: "writing"; output: string }
@@ -41,15 +56,21 @@ export function ChapterDetailClient({
 }: ChapterDetailClientProps) {
 	const apiBase = `/api/projects/${projectId}`;
 	const router = useRouter();
-	const [tab, setTab] = useState<"read" | "review" | "compare">(
-		initialAction === "write" && !initialContent ? "review" : "read",
-	);
+	const [tab, setTab] = useState<
+		"read" | "review" | "validate" | "audit" | "compare"
+	>(initialAction === "write" && !initialContent ? "review" : "read");
 	const [content, setContent] = useState(initialContent);
 	const [wordCount, setWordCount] = useState(initialWordCount);
 	const [instruction, setInstruction] = useState("");
 	const [review, setReview] = useState<ReviewData>(null);
 	const [reviewBusy, setReviewBusy] = useState(false);
 	const [reviewError, setReviewError] = useState<string | null>(null);
+	const [validation, setValidation] = useState<ValidationData>(null);
+	const [validationBusy, setValidationBusy] = useState(false);
+	const [validationError, setValidationError] = useState<string | null>(null);
+	const [audit, setAudit] = useState<AuditData>(null);
+	const [auditBusy, setAuditBusy] = useState(false);
+	const [auditError, setAuditError] = useState<string | null>(null);
 	const [rewrite, setRewrite] = useState<WriteState>({ kind: "idle" });
 	const [restoreBusy, setRestoreBusy] = useState(false);
 	const [originalForCompare, setOriginalForCompare] = useState<string | null>(
@@ -181,6 +202,50 @@ export function ChapterDetailClient({
 		}
 	}, [number, apiBase]);
 
+	const onValidate = useCallback(async () => {
+		setValidationBusy(true);
+		setValidationError(null);
+		try {
+			const res = await fetch(`${apiBase}/chapters/${number}/validate`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({}),
+			});
+			if (!res.ok) {
+				const text = await res.text().catch(() => "");
+				throw new Error(text || `검증 실패 (${res.status})`);
+			}
+			const data = (await res.json()) as { findings: ValidationFinding[] };
+			setValidation({ findings: data.findings });
+		} catch (err) {
+			setValidationError(err instanceof Error ? err.message : String(err));
+		} finally {
+			setValidationBusy(false);
+		}
+	}, [number, apiBase]);
+
+	const onAudit = useCallback(async () => {
+		setAuditBusy(true);
+		setAuditError(null);
+		try {
+			const res = await fetch(`${apiBase}/chapters/${number}/audit`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({}),
+			});
+			if (!res.ok) {
+				const text = await res.text().catch(() => "");
+				throw new Error(text || `감사 실패 (${res.status})`);
+			}
+			const data = (await res.json()) as { findings: ValidationFinding[] };
+			setAudit({ findings: data.findings });
+		} catch (err) {
+			setAuditError(err instanceof Error ? err.message : String(err));
+		} finally {
+			setAuditBusy(false);
+		}
+	}, [number, apiBase]);
+
 	const onCancel = useCallback(() => {
 		abortRef.current?.abort();
 	}, []);
@@ -208,6 +273,8 @@ export function ChapterDetailClient({
 				tabs={[
 					{ id: "read", label: "읽기" },
 					{ id: "review", label: "리뷰 & 수정" },
+					{ id: "validate", label: "정적 검증" },
+					{ id: "audit", label: "LLM 감사" },
 					{
 						id: "compare",
 						label: "비교",
@@ -346,6 +413,121 @@ export function ChapterDetailClient({
 						<div className="text-[12px] text-[var(--color-success)]">
 							재생성 완료 ({rewrite.wordCount.toLocaleString()}자). 비교 탭을
 							확인하세요.
+						</div>
+					)}
+				</div>
+			)}
+
+			{tab === "validate" && (
+				<div className="pt-6 grid gap-3">
+					<h3 className="text-[13px] font-semibold">정적 일관성 검증</h3>
+					<p className="text-[11px] text-[var(--color-text-mute)]">
+						bible/world.md 기반 결정론적 검사 (LLM 미사용). floor-consistency ·
+						forbidden-props · visa-duration.
+					</p>
+					<div>
+						<Button onClick={onValidate} disabled={validationBusy || !content}>
+							{validationBusy ? "검증 중…" : "정적 검증 실행"}
+						</Button>
+					</div>
+					{validationError && (
+						<div className="text-[12px] text-[var(--color-danger)]">
+							{validationError}
+						</div>
+					)}
+					{validation && (
+						<div className="grid gap-2">
+							{validation.findings.length === 0 ? (
+								<p className="text-[12px] text-[var(--color-text-mute)]">
+									✓ 이슈 없음
+								</p>
+							) : (
+								<ul className="grid gap-1 text-[12px]">
+									{validation.findings.map((f, i) => (
+										<li
+											// biome-ignore lint/suspicious/noArrayIndexKey: findings have no stable id
+											key={i}
+											className={
+												f.severity === "error"
+													? "text-[var(--color-danger)]"
+													: f.severity === "warning"
+														? "text-[var(--color-warning)]"
+														: "text-[var(--color-text-mute)]"
+											}
+										>
+											<span className="font-mono mr-2">
+												{f.severity === "error"
+													? "✗"
+													: f.severity === "warning"
+														? "⚠"
+														: "ℹ"}
+											</span>
+											<span className="font-mono mr-2">[{f.rule}]</span>
+											{f.message}
+											{f.excerpt && (
+												<span className="block text-[var(--color-text-mute)] mt-0.5">
+													{f.excerpt}
+												</span>
+											)}
+										</li>
+									))}
+								</ul>
+							)}
+						</div>
+					)}
+				</div>
+			)}
+
+			{tab === "audit" && (
+				<div className="pt-6 grid gap-3">
+					<h3 className="text-[13px] font-semibold">LLM 연속성 감사</h3>
+					<p className="text-[11px] text-[var(--color-text-mute)]">
+						8개 차원 (캐릭터·타임라인·설정·감정·언어·페이싱·정보경계·craft). LLM
+						호출당 약간의 토큰 비용 발생.
+					</p>
+					<div>
+						<Button onClick={onAudit} disabled={auditBusy || !content}>
+							{auditBusy ? "감사 중…" : "LLM 감사 실행"}
+						</Button>
+					</div>
+					{auditError && (
+						<div className="text-[12px] text-[var(--color-danger)]">
+							{auditError}
+						</div>
+					)}
+					{audit && (
+						<div className="grid gap-2">
+							{audit.findings.length === 0 ? (
+								<p className="text-[12px] text-[var(--color-text-mute)]">
+									✓ 발견사항 없음
+								</p>
+							) : (
+								<ul className="grid gap-1 text-[12px]">
+									{audit.findings.map((f, i) => (
+										<li
+											// biome-ignore lint/suspicious/noArrayIndexKey: findings have no stable id
+											key={i}
+											className={
+												f.severity === "error"
+													? "text-[var(--color-danger)]"
+													: f.severity === "warning"
+														? "text-[var(--color-warning)]"
+														: "text-[var(--color-text-mute)]"
+											}
+										>
+											<span className="font-mono mr-2">
+												{f.severity === "error"
+													? "✗"
+													: f.severity === "warning"
+														? "⚠"
+														: "ℹ"}
+											</span>
+											<span className="font-mono mr-2">[{f.rule}]</span>
+											{f.message}
+										</li>
+									))}
+								</ul>
+							)}
 						</div>
 					)}
 				</div>
