@@ -198,3 +198,145 @@ export async function showConfig(opts: ShowConfigOpts = {}): Promise<void> {
 	const stdout = opts.stdout ?? process.stdout;
 	stdout.write(`${JSON.stringify(data, null, 2)}\n`);
 }
+
+export interface ExportGlobalOptions extends ConfigOpts {
+	/** Where to write the export. Defaults to stdout. */
+	stdout?: { write(chunk: string): void };
+	/** Omit apiKey from the export so it can be shared (e.g. in a PR). */
+	redact?: boolean;
+}
+
+/**
+ * Dump the global config (~/.essai/config.json) as JSON. Useful for
+ * backing up LLM defaults + project registry before a machine wipe, or
+ * for sharing setup with a collaborator (with --redact to strip the
+ * apiKey). Round-trips cleanly with `config import`.
+ */
+export async function exportGlobalConfig(
+	opts: ExportGlobalOptions = {},
+): Promise<void> {
+	const homeDir = opts.homeDir ?? os.homedir();
+	const stdout = opts.stdout ?? process.stdout;
+	const global = await GlobalConfig.load(homeDir);
+	const json = global.toJSON();
+	if (opts.redact) {
+		json.defaultApiKey = "<redacted>";
+		for (const project of json.projects) {
+			// Projects don't carry their own apiKey (they inherit), so
+			// there's nothing to scrub here. The redaction is purely for
+			// the top-level defaultApiKey.
+			void project;
+		}
+	}
+	stdout.write(`${JSON.stringify(json, null, 2)}\n`);
+}
+
+export interface ImportGlobalOptions extends ConfigOpts {
+	/** Source JSON string (already-read). */
+	input: string;
+	/** Merge into existing config instead of replacing it. */
+	merge?: boolean;
+	/** Skip the apiKey field from the imported payload. */
+	skipApiKey?: boolean;
+}
+
+/**
+ * Replace (or merge into) the global config from a JSON payload. The
+ * payload is re-validated through the same zod schema that `load` uses,
+ * so malformed imports are rejected before touching disk.
+ *
+ * Merge semantics: scalar fields (defaultModel, defaultBaseUrl, etc.)
+ * are overwritten when present in the import. The `projects` array is
+ * unioned by id (imported ids win on collision).
+ */
+export async function importGlobalConfig(
+	opts: ImportGlobalOptions,
+): Promise<void> {
+	const homeDir = opts.homeDir ?? os.homedir();
+	const parsed = JSON.parse(opts.input) as Record<string, unknown>;
+	if (opts.skipApiKey && "defaultApiKey" in parsed) {
+		delete parsed.defaultApiKey;
+	}
+
+	// Validate before touching disk. Throws on schema mismatch.
+	const incoming = globalConfigSchema.parse(parsed);
+
+	const current = await GlobalConfig.load(homeDir).catch(() => null);
+
+	// Without --merge we still need to honor --skip-api-key: pull the
+	// current apiKey back in so the replace path doesn't wipe it.
+	let finalData = incoming;
+	if (opts.skipApiKey && current) {
+		finalData = {
+			...incoming,
+			defaultApiKey: current.defaultApiKey,
+		};
+	}
+
+	const merged =
+		opts.merge && current
+			? mergeGlobalData(current.toJSON(), finalData)
+			: finalData;
+
+	const next = new GlobalConfig(merged);
+	await next.save(homeDir);
+}
+
+function mergeGlobalData(
+	current: {
+		defaultLanguage: string;
+		defaultModel: string;
+		defaultBaseUrl: string;
+		defaultApiKey: string;
+		defaultChapterWords: number;
+		defaultTemperature: number;
+		projects: Array<{ name: string; path: string; id: string }>;
+	},
+	incoming: {
+		defaultLanguage?: string;
+		defaultModel?: string;
+		defaultBaseUrl?: string;
+		defaultApiKey?: string;
+		defaultChapterWords?: number;
+		defaultTemperature?: number;
+		projects?: Array<{ name: string; path: string; id: string }>;
+	},
+): {
+	defaultLanguage: string;
+	defaultModel: string;
+	defaultBaseUrl: string;
+	defaultApiKey: string;
+	defaultChapterWords: number;
+	defaultTemperature: number;
+	projects: Array<{ name: string; path: string; id: string }>;
+} {
+	const byId = new Map<string, { name: string; path: string; id: string }>();
+	for (const p of current.projects) byId.set(p.id, p);
+	for (const p of incoming.projects ?? []) byId.set(p.id, p);
+	// Treat empty string as "not set" so zod defaults (which fill missing
+	// fields with "") don't clobber existing values during a merge.
+	const pickStr = (
+		incomingValue: string | undefined,
+		currentValue: string,
+	): string =>
+		incomingValue && incomingValue.length > 0 ? incomingValue : currentValue;
+	const pickNum = (
+		incomingValue: number | undefined,
+		currentValue: number,
+	): number => (incomingValue !== undefined ? incomingValue : currentValue);
+	return {
+		defaultLanguage: pickStr(incoming.defaultLanguage, current.defaultLanguage),
+		defaultModel: pickStr(incoming.defaultModel, current.defaultModel),
+		defaultBaseUrl: pickStr(incoming.defaultBaseUrl, current.defaultBaseUrl),
+		defaultApiKey: pickStr(incoming.defaultApiKey, current.defaultApiKey),
+		defaultChapterWords: pickNum(
+			incoming.defaultChapterWords,
+			current.defaultChapterWords,
+		),
+		defaultTemperature: pickNum(
+			incoming.defaultTemperature,
+			current.defaultTemperature,
+		),
+		projects: [...byId.values()],
+	};
+}

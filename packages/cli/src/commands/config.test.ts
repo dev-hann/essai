@@ -3,7 +3,13 @@ import os from "node:os";
 import path from "node:path";
 import { GlobalConfig } from "@essai/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { getConfigValue, setConfigValue, showConfig } from "./config.js";
+import {
+	exportGlobalConfig,
+	getConfigValue,
+	importGlobalConfig,
+	setConfigValue,
+	showConfig,
+} from "./config.js";
 
 interface Captured {
 	lines: string[];
@@ -262,6 +268,214 @@ describe("config commands", () => {
 				"utf-8",
 			);
 			expect(afterProject).toBe(beforeProject);
+		});
+	});
+
+	describe("exportGlobalConfig", () => {
+		it("dumps the current global config as JSON", async () => {
+			const home = await fs.mkdtemp(path.join(os.tmpdir(), "essai-export-"));
+			try {
+				const existing = new GlobalConfig({
+					defaultLanguage: "ko",
+					defaultModel: "glm-5.1",
+					defaultBaseUrl: "https://example.com",
+					defaultApiKey: "secret",
+					defaultChapterWords: 2500,
+					defaultTemperature: 0.8,
+					projects: [],
+				});
+				await existing.save(home);
+
+				let captured = "";
+				await exportGlobalConfig({
+					homeDir: home,
+					stdout: { write: (s) => (captured += s) },
+				});
+
+				const parsed = JSON.parse(captured);
+				expect(parsed.defaultLanguage).toBe("ko");
+				expect(parsed.defaultApiKey).toBe("secret");
+			} finally {
+				await fs.rm(home, { recursive: true, force: true });
+			}
+		});
+
+		it("redacts the apiKey when --redact is set", async () => {
+			const home = await fs.mkdtemp(path.join(os.tmpdir(), "essai-export-"));
+			try {
+				const existing = new GlobalConfig({
+					defaultLanguage: "en",
+					defaultModel: "x",
+					defaultBaseUrl: "",
+					defaultApiKey: "do-not-share",
+					defaultChapterWords: 3000,
+					defaultTemperature: 0.7,
+					projects: [],
+				});
+				await existing.save(home);
+
+				let captured = "";
+				await exportGlobalConfig({
+					homeDir: home,
+					redact: true,
+					stdout: { write: (s) => (captured += s) },
+				});
+
+				expect(captured).not.toContain("do-not-share");
+				expect(captured).toContain("<redacted>");
+			} finally {
+				await fs.rm(home, { recursive: true, force: true });
+			}
+		});
+	});
+
+	describe("importGlobalConfig", () => {
+		it("replaces the global config when no --merge", async () => {
+			const home = await fs.mkdtemp(path.join(os.tmpdir(), "essai-import-"));
+			try {
+				const old = new GlobalConfig({
+					defaultLanguage: "en",
+					defaultModel: "old",
+					defaultBaseUrl: "",
+					defaultApiKey: "",
+					defaultChapterWords: 3000,
+					defaultTemperature: 0.7,
+					projects: [],
+				});
+				await old.save(home);
+
+				await importGlobalConfig({
+					homeDir: home,
+					input: JSON.stringify({
+						defaultLanguage: "ko",
+						defaultModel: "glm-5.1",
+						defaultBaseUrl: "https://example.com",
+						defaultApiKey: "k",
+						defaultChapterWords: 3000,
+						defaultTemperature: 0.7,
+						projects: [{ name: "x", path: "/x", id: "x-1" }],
+					}),
+				});
+
+				const reloaded = await GlobalConfig.load(home);
+				expect(reloaded.defaultLanguage).toBe("ko");
+				expect(reloaded.defaultModel).toBe("glm-5.1");
+				expect(reloaded.listProjects()).toEqual([
+					{ name: "x", path: "/x", id: "x-1" },
+				]);
+			} finally {
+				await fs.rm(home, { recursive: true, force: true });
+			}
+		});
+
+		it("merges projects by id when --merge is set", async () => {
+			const home = await fs.mkdtemp(path.join(os.tmpdir(), "essai-import-"));
+			try {
+				const old = new GlobalConfig({
+					defaultLanguage: "en",
+					defaultModel: "old",
+					defaultBaseUrl: "",
+					defaultApiKey: "",
+					defaultChapterWords: 3000,
+					defaultTemperature: 0.7,
+					projects: [{ name: "a", path: "/a", id: "a-1" }],
+				});
+				await old.save(home);
+
+				await importGlobalConfig({
+					homeDir: home,
+					merge: true,
+					input: JSON.stringify({
+						defaultLanguage: "ko",
+						projects: [
+							{ name: "a", path: "/a-new", id: "a-1" },
+							{ name: "b", path: "/b", id: "b-2" },
+						],
+					}),
+				});
+
+				const reloaded = await GlobalConfig.load(home);
+				// defaultModel preserved from existing (not in import)
+				expect(reloaded.defaultModel).toBe("old");
+				expect(reloaded.defaultLanguage).toBe("ko");
+				const projects = reloaded.listProjects();
+				expect(projects).toContainEqual({
+					name: "a",
+					path: "/a-new",
+					id: "a-1",
+				});
+				expect(projects).toContainEqual({ name: "b", path: "/b", id: "b-2" });
+			} finally {
+				await fs.rm(home, { recursive: true, force: true });
+			}
+		});
+
+		it("rejects malformed JSON input", async () => {
+			const home = await fs.mkdtemp(path.join(os.tmpdir(), "essai-import-"));
+			try {
+				await expect(
+					importGlobalConfig({ homeDir: home, input: "{not json" }),
+				).rejects.toThrow();
+			} finally {
+				await fs.rm(home, { recursive: true, force: true });
+			}
+		});
+
+		it("rejects schema-invalid payload", async () => {
+			const home = await fs.mkdtemp(path.join(os.tmpdir(), "essai-import-"));
+			try {
+				await expect(
+					importGlobalConfig({
+						homeDir: home,
+						input: JSON.stringify({
+							defaultLanguage: "ko",
+							defaultModel: "x",
+							defaultBaseUrl: "",
+							defaultApiKey: "",
+							defaultChapterWords: "not-a-number",
+							defaultTemperature: 0.7,
+							projects: [],
+						}),
+					}),
+				).rejects.toThrow();
+			} finally {
+				await fs.rm(home, { recursive: true, force: true });
+			}
+		});
+
+		it("honors --skip-api-key", async () => {
+			const home = await fs.mkdtemp(path.join(os.tmpdir(), "essai-import-"));
+			try {
+				const old = new GlobalConfig({
+					defaultLanguage: "en",
+					defaultModel: "x",
+					defaultBaseUrl: "",
+					defaultApiKey: "preserve-me",
+					defaultChapterWords: 3000,
+					defaultTemperature: 0.7,
+					projects: [],
+				});
+				await old.save(home);
+
+				await importGlobalConfig({
+					homeDir: home,
+					skipApiKey: true,
+					input: JSON.stringify({
+						defaultLanguage: "ko",
+						defaultModel: "x",
+						defaultBaseUrl: "",
+						defaultApiKey: "imported-but-should-be-ignored",
+						defaultChapterWords: 3000,
+						defaultTemperature: 0.7,
+						projects: [],
+					}),
+				});
+
+				const reloaded = await GlobalConfig.load(home);
+				expect(reloaded.defaultApiKey).toBe("preserve-me");
+			} finally {
+				await fs.rm(home, { recursive: true, force: true });
+			}
 		});
 	});
 });

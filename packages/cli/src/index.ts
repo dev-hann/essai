@@ -12,7 +12,9 @@ import {
 	bibleValidate,
 } from "./commands/bible.js";
 import {
+	exportGlobalConfig,
 	getConfigValue,
+	importGlobalConfig,
 	setConfigValue,
 	showConfig,
 } from "./commands/config.js";
@@ -122,6 +124,62 @@ export function buildProgram(): Command {
 				process.exit(1);
 			}
 		});
+
+	config
+		.command("export")
+		.description(
+			"Dump the global ~/.essai/config.json as JSON (use --redact to share)",
+		)
+		.option("--redact", "replace defaultApiKey with <redacted>")
+		.option("-g, --global", "explicit (export is always global)")
+		.action(async (opts: { redact?: boolean; global?: boolean }) => {
+			void opts.global;
+			try {
+				await exportGlobalConfig({
+					...(opts.redact ? { redact: true } : {}),
+				});
+			} catch (err) {
+				reportError(err);
+				process.exit(1);
+			}
+		});
+
+	config
+		.command("import [file]")
+		.description(
+			"Replace (or --merge) the global config from a JSON file or stdin",
+		)
+		.option("--merge", "union into existing config instead of replacing")
+		.option("--skip-api-key", "ignore the defaultApiKey field in the import")
+		.action(
+			async (
+				file: string | undefined,
+				opts: { merge?: boolean; skipApiKey?: boolean },
+			) => {
+				try {
+					let input: string;
+					if (file) {
+						const fs = await import("node:fs/promises");
+						input = await fs.readFile(file, "utf-8");
+					} else {
+						const chunks: Buffer[] = [];
+						for await (const chunk of process.stdin) {
+							chunks.push(chunk as Buffer);
+						}
+						input = Buffer.concat(chunks).toString("utf-8");
+					}
+					await importGlobalConfig({
+						input,
+						...(opts.merge ? { merge: true } : {}),
+						...(opts.skipApiKey ? { skipApiKey: true } : {}),
+					});
+					process.stdout.write("Global config imported.\n");
+				} catch (err) {
+					reportError(err);
+					process.exit(1);
+				}
+			},
+		);
 
 	program
 		.command("write <chapter>")
