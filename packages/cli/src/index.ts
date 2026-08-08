@@ -1,6 +1,8 @@
 #!/usr/bin/env node
+import type { AuditDimensionId } from "@essai/core";
 import { CORE_VERSION } from "@essai/core";
 import { Command } from "commander";
+import { auditCommand } from "./commands/audit.js";
 import {
 	bibleAdd,
 	bibleEdit,
@@ -328,6 +330,34 @@ export function buildProgram(): Command {
 				await validateCommand(n, {
 					...(opts.disable !== undefined
 						? { disable: opts.disable.split(",") }
+						: {}),
+				});
+			} catch (err) {
+				reportError(err);
+				process.exit(1);
+			}
+		});
+
+	program
+		.command("audit <chapter>")
+		.description(
+			"Run the LLM continuity auditor across 8 dimensions (character, timeline, setting, emotion, language, pacing, info barrier, craft rules)",
+		)
+		.option(
+			"--only <dimensions>",
+			"comma-separated subset of dimensions to run (default: all 8)",
+		)
+		.action(async (chapter: string, opts: { only?: string }) => {
+			try {
+				const n = parseChapterArg(chapter);
+				if (n === "next") {
+					throw new Error(
+						'"audit next" is not supported. Use a chapter number.',
+					);
+				}
+				await auditCommand(n, {
+					...(opts.only !== undefined
+						? { only: opts.only.split(",") as AuditDimensionId[] }
 						: {}),
 				});
 			} catch (err) {

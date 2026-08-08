@@ -108,6 +108,14 @@ export type {
 // Reviewer
 export { ChapterReviewer } from "./reviewer/chapter-reviewer.js";
 export type {
+	AuditDimensionId,
+	AuditOptions,
+} from "./validator/continuity-auditor.js";
+export {
+	AUDIT_DIMENSIONS,
+	ContinuityAuditor,
+} from "./validator/continuity-auditor.js";
+export type {
 	StaticValidatorOptions,
 	ValidationFinding,
 	ValidationSeverity,
