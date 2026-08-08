@@ -32,7 +32,14 @@ vi.mock("node:fs", async (importOriginal) => {
 vi.mock("@essai/core", () => ({
 	loadBible: loadBibleMock,
 	findEmotionStage: vi.fn().mockReturnValue(null),
-	MemoryStore: MemoryStoreMock,
+	// MemoryStore is instantiated with `new` in the page module, so the mock
+	// must be a constructor. Using a class wrapper keeps `new MemoryStore(...)`
+	// valid while delegating to the loadRecent mock for assertion.
+	MemoryStore: class FakeMemoryStore {
+		loadRecent(...args: Parameters<typeof loadRecentMock>) {
+			return loadRecentMock(...args);
+		}
+	},
 }));
 
 import DashboardPage from "@/app/p/[id]/page.js";
@@ -41,7 +48,6 @@ function resetCoreMocks() {
 	resolveProjectDirMock.mockReset();
 	loadBibleMock.mockReset();
 	loadRecentMock.mockReset();
-	MemoryStoreMock.mockReset();
 
 	resolveProjectDirMock.mockResolvedValue("/fake/project");
 	loadBibleMock.mockResolvedValue({
@@ -53,7 +59,9 @@ function resetCoreMocks() {
 	});
 
 	loadRecentMock.mockResolvedValue([]);
-	MemoryStoreMock.mockImplementation(() => ({ loadRecent: loadRecentMock }));
+	// MemoryStore is now a class-based mock; nothing to rewire here, but we
+	// keep the alias exported for legacy tests that import it.
+	void MemoryStoreMock;
 }
 
 describe("DashboardPage (project-scoped)", () => {

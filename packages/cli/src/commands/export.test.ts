@@ -61,6 +61,53 @@ describe("buildExportContent", () => {
 		const out = buildExportContent(files, "txt");
 		expect(out.indexOf("one")).toBeLessThan(out.indexOf("two"));
 	});
+
+	it("strips ATX heading markers from chapter content in txt format", () => {
+		// Regression: BUG#10 — txt export used to embed raw markdown
+		// ("# 1화: 같은 자리"). The plain text format must drop heading
+		// syntax while keeping the heading prose.
+		const out = buildExportContent(
+			[{ name: "001.md", content: "# 1화: 같은 자리\n\n본문 내용" }],
+			"txt",
+		);
+		expect(out).not.toContain("#");
+		expect(out).toContain("1화: 같은 자리");
+		expect(out).toContain("본문 내용");
+	});
+
+	it("strips emphasis, code spans, and horizontal rules in txt format", () => {
+		const out = buildExportContent(
+			[
+				{
+					name: "001.md",
+					content:
+						"**bold** and *italic* and `code` and --- separator",
+				},
+			],
+			"txt",
+		);
+		expect(out).toContain("bold");
+		expect(out).toContain("italic");
+		expect(out).toContain("code");
+		expect(out).not.toContain("**");
+		expect(out).not.toContain("*");
+		expect(out).not.toContain("`");
+		expect(out).not.toMatch(/^---\s*$/m);
+	});
+
+	it("preserves markdown syntax in md format", () => {
+		const out = buildExportContent(
+			[
+				{
+					name: "001.md",
+					content: "# 제목\n\n**강조** 본문",
+				},
+			],
+			"md",
+		);
+		expect(out).toContain("# 제목");
+		expect(out).toContain("**강조**");
+	});
 });
 
 describe("exportCommand", () => {

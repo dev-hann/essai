@@ -343,4 +343,41 @@ describe("ChapterWriter", () => {
 			fs.readFile(path.join(tmpDir, "chapters", "001.md"), "utf-8"),
 		).rejects.toThrow();
 	});
+
+	it("throws and does not write a file when the stream resolves to empty content", async () => {
+		// Regression: BUG#8 — an intermittent model response of "" used to
+		// silently produce a 0-byte chapter file. The guard must throw before
+		// any disk write happens.
+		mockStreamResult([""]);
+
+		const writer = new ChapterWriter(
+			newConfig(sampleConfigData()),
+			sampleBible(),
+			tmpDir,
+		);
+
+		await expect(writer.writeChapter(1)).rejects.toThrow(/empty content/i);
+
+		await expect(
+			fs.readFile(path.join(tmpDir, "chapters", "001.md"), "utf-8"),
+		).rejects.toThrow();
+	});
+
+	it("throws when the stream emits only whitespace", async () => {
+		// Regression: BUG#8 companion case. trim()-based guard must catch
+		// whitespace-only output, not just literal empty strings.
+		mockStreamResult(["   ", "\n\n", "\t"]);
+
+		const writer = new ChapterWriter(
+			newConfig(sampleConfigData()),
+			sampleBible(),
+			tmpDir,
+		);
+
+		await expect(writer.writeChapter(1)).rejects.toThrow(/empty content/i);
+
+		await expect(
+			fs.readFile(path.join(tmpDir, "chapters", "001.md"), "utf-8"),
+		).rejects.toThrow();
+	});
 });
