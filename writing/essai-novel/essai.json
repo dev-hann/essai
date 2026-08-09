@@ -1,0 +1,13 @@
+{
+  "name": "essai-novel",
+  "language": "ko",
+  "chapterWords": 3000,
+  "llm": {
+    "baseUrl": "https://api.z.ai/api/coding/paas/v4",
+    "apiKey": "bb55864825ab42599757af86531357c5.HXPvHzGRMsPdNd3k",
+    "model": "glm-5.1",
+    "temperature": 0.7,
+    "maxTokens": 16000,
+    "thinkingEnabled": false
+  }
+}
